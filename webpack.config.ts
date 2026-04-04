@@ -26,6 +26,8 @@ const {
   APP_MOCKED_CLIENT = '1',
   HTTPS_CERT_PATH = '',
   HTTPS_KEY_PATH = '',
+  SUPABASE_URL = '',
+  SUPABASE_ANON_KEY = '',
 } = process.env;
 
 const DEFAULT_APP_TITLE = `Telegram${APP_ENV !== 'production' ? ' Beta' : ''}`;
@@ -230,6 +232,8 @@ export default function createConfig(
         // eslint-disable-next-line no-null/no-null
         TEST_SESSION: null,
         BASE_URL,
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
       }),
       // Updates each dev re-build to provide current git branch or commit hash
       new DefinePlugin({
