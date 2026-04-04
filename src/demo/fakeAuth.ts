@@ -1,12 +1,16 @@
 export type DemoSession = {
   userId: number;
-  username: string;
+  phoneNumber: string;
 };
 
 const SESSION_STORAGE_KEY = 'demo.local.session';
 
-const TEST_USERNAME = 'test';
-const TEST_PASSWORD = 'test123';
+const TEST_PHONE_NUMBER = '+10000000000';
+const TEST_CODE = '11111';
+
+function normalizePhoneNumber(phoneNumber: string) {
+  return `+${phoneNumber.replace(/[^\d]/g, '')}`;
+}
 
 export function getStoredSession(): DemoSession | undefined {
   const rawSession = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -16,10 +20,10 @@ export function getStoredSession(): DemoSession | undefined {
 
   try {
     const parsedSession = JSON.parse(rawSession) as Partial<DemoSession>;
-    if (parsedSession.userId === 1 && parsedSession.username === TEST_USERNAME) {
+    if (parsedSession.userId === 1 && typeof parsedSession.phoneNumber === 'string') {
       return {
         userId: 1,
-        username: TEST_USERNAME,
+        phoneNumber: parsedSession.phoneNumber,
       };
     }
   } catch {
@@ -29,16 +33,18 @@ export function getStoredSession(): DemoSession | undefined {
   return undefined;
 }
 
-export function signIn(username: string, password: string): DemoSession | undefined {
-  const normalizedUsername = username.trim();
+export function isAllowedDemoPhone(phoneNumber: string) {
+  return normalizePhoneNumber(phoneNumber) === TEST_PHONE_NUMBER;
+}
 
-  if (normalizedUsername !== TEST_USERNAME || password !== TEST_PASSWORD) {
-    return undefined;
-  }
+export function verifyDemoCode(code: string) {
+  return code.trim() === TEST_CODE;
+}
 
+export function signInWithPhone(phoneNumber: string): DemoSession {
   const session: DemoSession = {
     userId: 1,
-    username: TEST_USERNAME,
+    phoneNumber: normalizePhoneNumber(phoneNumber),
   };
 
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
@@ -52,7 +58,7 @@ export function signOut() {
 
 export function getTestCredentials() {
   return {
-    username: TEST_USERNAME,
-    password: TEST_PASSWORD,
+    phoneNumber: TEST_PHONE_NUMBER,
+    code: TEST_CODE,
   };
 }
