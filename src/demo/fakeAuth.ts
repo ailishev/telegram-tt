@@ -81,7 +81,41 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   clearPendingPhone();
 
-  return session;
+    return session;
+  } catch (err) {
+    await ensureDemoProfile(normalizedPhone).catch(() => undefined);
+    const profile = await getProfileByPhone(normalizedPhone).catch(() => undefined);
+
+    const fallbackSession: DemoSession = {
+      userId: profile?.id || `local_${normalizedPhone.replace(/[^\d]/g, '')}`,
+      phoneNumber: normalizedPhone,
+      accessToken: '',
+      refreshToken: '',
+      needsOnboarding: !profile?.first_name,
+      isLocalFallback: true,
+    };
+
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fallbackSession));
+    clearPendingPhone();
+    return fallbackSession;
+  }
+}
+
+async function completeOnboardingImpl(firstName: string, lastName: string) {
+  const session = getStoredSession();
+  if (!session) return;
+
+  await upsertProfileOnboarding(session.phoneNumber, {
+    first_name: firstName,
+    last_name: lastName,
+    username: `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || undefined,
+  }, session.accessToken || undefined).catch(() => undefined);
+
+  const updated: DemoSession = {
+    ...session,
+    needsOnboarding: false,
+  };
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
 }
 
 async function completeOnboardingImpl(firstName: string, lastName: string) {
@@ -119,6 +153,8 @@ export function getTestCredentials() {
     username: 'demo',
     password: 'demo',
   };
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fallbackSession));
+  return fallbackSession;
 }
 
 export function signIn(username: string, password: string) {
