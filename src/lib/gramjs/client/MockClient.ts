@@ -4,6 +4,7 @@ import type { SizeType } from './TelegramClient';
 
 import { GENERAL_TOPIC_ID } from '../../../config';
 import { toJSNumber } from '../../../util/numbers';
+import { buildMockDataFromSupabase, isSupabaseConfigured } from '../../../demo/supabaseClient';
 import { Logger } from '../extensions';
 import { UpdateConnectionState } from '../network';
 import Api from '../tl/api';
@@ -62,6 +63,20 @@ class TelegramClient {
     });
   }
 
+  private async loadFromSupabase() {
+    try {
+      this.mockData = await buildMockDataFromSupabase();
+
+      this.callbacks.forEach(({ eventBuilder, callback }) => (callback(
+        eventBuilder.build(new UpdateConnectionState(UpdateConnectionState.connected)),
+      )));
+
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   async loadScenario(scenario = 'default'): Promise<void> {
     try {
       const invokeMiddleware = await import(`./__invokeMiddlewares__/${scenario}`);
@@ -97,11 +112,18 @@ class TelegramClient {
     return this.mockData.dialogs[type].map((dialog) => createMockedDialog(dialog.id, this.mockData));
   }
 
-  start({
+  async start({
     mockScenario,
   }: {
     mockScenario: string;
   }) {
+    if (isSupabaseConfigured()) {
+      const wasLoaded = await this.loadFromSupabase();
+      if (wasLoaded) {
+        return;
+      }
+    }
+
     return this.loadScenario(mockScenario);
   }
 
