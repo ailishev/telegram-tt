@@ -1,19 +1,19 @@
-const SUPABASE_URL_RAW = process.env.SUPABASE_URL;
+export const SUPABASE_URL_RAW = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 export const APP_API_BASE_URL = process.env.APP_API_BASE_URL;
 
-function resolveSupabaseRestBaseUrl() {
-  if (!SUPABASE_URL_RAW) {
+export function resolveSupabaseRestBaseUrl(supabaseUrlRaw: string | undefined = SUPABASE_URL_RAW) {
+  if (!supabaseUrlRaw) {
     return undefined;
   }
 
-  if (SUPABASE_URL_RAW.startsWith('http://') || SUPABASE_URL_RAW.startsWith('https://')) {
-    return SUPABASE_URL_RAW.replace(/\/$/, '');
+  if (supabaseUrlRaw.startsWith('http://') || supabaseUrlRaw.startsWith('https://')) {
+    return supabaseUrlRaw.replace(/\/$/, '');
   }
 
-  if (SUPABASE_URL_RAW.startsWith('postgresql://') || SUPABASE_URL_RAW.startsWith('postgres://')) {
+  if (supabaseUrlRaw.startsWith('postgresql://') || supabaseUrlRaw.startsWith('postgres://')) {
     try {
-      const parsed = new URL(SUPABASE_URL_RAW);
+      const parsed = new URL(supabaseUrlRaw);
       const apiHost = parsed.hostname.replace(/^db\./, '');
       return `https://${apiHost}`;
     } catch {

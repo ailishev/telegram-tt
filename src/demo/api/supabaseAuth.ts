@@ -1,4 +1,6 @@
-const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/$/, '');
+import { resolveSupabaseRestBaseUrl, SUPABASE_URL_RAW } from './client';
+
+const SUPABASE_URL = resolveSupabaseRestBaseUrl(SUPABASE_URL_RAW);
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const DEMO_AUTH_PASSWORD = process.env.APP_DEMO_AUTH_PASSWORD || 'telegram_tt_dev_password';
 
