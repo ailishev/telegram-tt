@@ -33,6 +33,7 @@ import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
+import { ensureDemoProfile } from '../../../demo/api/auth';
 import { getStoredSession, isAllowedDemoPhone, signInWithPhone, signOut, verifyDemoCode } from '../../../demo/fakeAuth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
@@ -131,6 +132,7 @@ addActionHandler('setAuthCode', (global, actions, payload): ActionReturnType => 
     }
 
     const demoSession = signInWithPhone(global.auth.phoneNumber || '+10000000000');
+    void ensureDemoProfile(demoSession.phoneNumber);
 
     return updateAuth(global, {
       errorKey: undefined,

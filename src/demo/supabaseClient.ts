@@ -39,25 +39,7 @@ type SupabaseParticipant = {
   role?: string;
 };
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-function getHeaders() {
-  return {
-    apikey: SUPABASE_ANON_KEY!,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-  } as Record<string, string>;
-}
-
-async function requestRows<T>(table: string, select: string) {
-  const url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`;
-  const response = await fetch(url, { headers: getHeaders() });
-  if (!response.ok) {
-    throw new Error(`Supabase request failed for ${table}`);
-  }
-
-  return response.json() as Promise<T[]>;
-}
+import { isDemoApiConfigured, selectRows } from './api/client';
 
 function toUnixSeconds(date?: string) {
   if (!date) return Math.floor(Date.now() / 1000);
@@ -65,16 +47,14 @@ function toUnixSeconds(date?: string) {
   return Number.isFinite(value) ? value : Math.floor(Date.now() / 1000);
 }
 
-export function isSupabaseConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-}
+export const isSupabaseConfigured = isDemoApiConfigured;
 
 export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const [users, dialogs, messages, participants] = await Promise.all([
-    requestRows<SupabaseUser>('users', '*'),
-    requestRows<SupabaseDialog>('dialogs', '*'),
-    requestRows<SupabaseMessage>('messages', '*'),
-    requestRows<SupabaseParticipant>('dialog_participants', '*'),
+    selectRows<SupabaseUser>('users', '*'),
+    selectRows<SupabaseDialog>('dialogs', '*'),
+    selectRows<SupabaseMessage>('messages', '*'),
+    selectRows<SupabaseParticipant>('dialog_participants', '*'),
   ]);
 
   const currentUser = users.find((user) => user.is_current) || users[0];
