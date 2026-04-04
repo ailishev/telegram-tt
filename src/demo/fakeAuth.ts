@@ -106,7 +106,7 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
   }
 }
 
-export async function completeOnboarding(firstName: string, lastName: string) {
+async function completeOnboardingImpl(firstName: string, lastName: string) {
   const session = getStoredSession();
   if (!session) return;
 
@@ -123,22 +123,7 @@ export async function completeOnboarding(firstName: string, lastName: string) {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
 }
 
-export async function completeOnboarding(firstName: string, lastName: string) {
-  const session = getStoredSession();
-  if (!session) return;
-
-  await upsertProfileOnboarding(session.phoneNumber, {
-    first_name: firstName,
-    last_name: lastName,
-    username: `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || undefined,
-  }, session.accessToken);
-
-  const updated: DemoSession = {
-    ...session,
-    needsOnboarding: false,
-  };
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
-}
+export { completeOnboardingImpl as completeOnboarding };
 
 export function signOut() {
   const session = getStoredSession();
