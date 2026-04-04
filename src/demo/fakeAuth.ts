@@ -1,3 +1,6 @@
+import { ensureDemoProfile, getProfileByPhone, upsertProfileOnboarding } from './api/auth';
+import { signInOrSignUpByPhone, signOutSupabase, type SupabaseSession } from './api/supabaseAuth';
+
 export type DemoSession = {
   userId: string;
   phoneNumber: string;
@@ -18,6 +21,21 @@ const STATIC_DEMO_SESSION = {
 
 function normalizePhoneNumber(phoneNumber: string): string {
   return `+${phoneNumber.replace(/[^\d]/g, '')}`;
+}
+
+function fromSupabaseSession(
+  session: SupabaseSession,
+  phoneNumber: string,
+  needsOnboarding: boolean,
+): DemoSession {
+  return {
+    userId: session.user.id,
+    phoneNumber,
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    expiresAt: session.expires_at,
+    needsOnboarding,
+  };
 }
 
 export function getStoredSession(): DemoSession | undefined {
@@ -71,6 +89,10 @@ export const signInWithPhone = async (phoneNumber: string): Promise<DemoSession>
     needsOnboarding: false,
   };
 
+  await ensureDemoProfile(normalizedPhone, supabaseSession.user.id, supabaseSession.access_token);
+  const profile = await getProfileByPhone(normalizedPhone, supabaseSession.access_token);
+
+  const session = fromSupabaseSession(supabaseSession, normalizedPhone, !profile?.first_name);
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   clearPendingPhone();
 
