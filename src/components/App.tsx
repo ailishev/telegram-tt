@@ -1,18 +1,11 @@
-import { useEffect, useLayoutEffect, useState } from '../lib/teact/teact';
+import { useEffect, useLayoutEffect } from '../lib/teact/teact';
 import { withGlobal } from '../global';
 
 import type { GlobalState } from '../global/types';
 import type { ThemeKey } from '../types';
 import type { UiLoaderPage } from './common/UiLoader';
 
-import {
-  DARK_THEME_BG_COLOR,
-  INACTIVE_MARKER,
-  IS_MOCKED_CLIENT,
-  LIGHT_THEME_BG_COLOR,
-  PAGE_TITLE,
-  PAGE_TITLE_TAURI,
-} from '../config';
+import { DARK_THEME_BG_COLOR, INACTIVE_MARKER, LIGHT_THEME_BG_COLOR, PAGE_TITLE, PAGE_TITLE_TAURI } from '../config';
 import { forceMutation } from '../lib/fasterdom/stricterdom.ts';
 import { selectActionMessageBg, selectTabState, selectTheme } from '../global/selectors';
 import { IS_TAURI } from '../util/browser/globalEnvironment';
@@ -24,7 +17,6 @@ import { hasEncryptedSession } from '../util/passcode';
 import { getInitialLocationHash, parseInitialLocationHash } from '../util/routing';
 import { checkSessionLocked, hasStoredSession } from '../util/sessions';
 import { updateSizes } from '../util/windowSize';
-import { getStoredSession, signOut } from '../demo/fakeAuth';
 
 import useTauriDrag from '../hooks/tauri/useTauriDrag';
 import useAppLayout from '../hooks/useAppLayout';
@@ -34,7 +26,6 @@ import { getIsInBackground } from '../hooks/window/useBackgroundMode';
 
 // import Test from './test/TestCleanupOrder';
 import Auth from './auth/Auth';
-import DemoLogin from './auth/DemoLogin';
 import Notifications from './common/Notifications';
 import UiLoader from './common/UiLoader';
 import AppInactive from './main/AppInactive';
@@ -78,24 +69,11 @@ const App = ({
 }: StateProps) => {
   const { isMobile } = useAppLayout();
   const isMobileOs = PLATFORM_ENV === 'iOS' || PLATFORM_ENV === 'Android';
-  const [isDemoAuthenticated, setIsDemoAuthenticated] = useState(() => Boolean(getStoredSession()));
 
   useEffect(() => {
     if (IS_INSTALL_PROMPT_SUPPORTED) {
       setupBeforeInstallPrompt();
     }
-  }, []);
-
-  useEffect(() => {
-    const onStorage = () => {
-      setIsDemoAuthenticated(Boolean(getStoredSession()));
-    };
-
-    window.addEventListener('storage', onStorage);
-
-    return () => {
-      window.removeEventListener('storage', onStorage);
-    };
   }, []);
 
   useEffect(() => {
@@ -157,10 +135,7 @@ const App = ({
   let activeKey: AppScreens;
   let page: UiLoaderPage | undefined;
 
-  if (IS_MOCKED_CLIENT && !isDemoAuthenticated) {
-    page = 'authPhoneNumber';
-    activeKey = AppScreens.auth;
-  } else if (inactiveReason) {
+  if (inactiveReason) {
     activeKey = AppScreens.inactive;
   } else if (isScreenLocked) {
     page = 'lock';
@@ -230,9 +205,7 @@ const App = ({
   function renderContent() {
     switch (activeKey) {
       case AppScreens.auth:
-        return IS_MOCKED_CLIENT
-          ? <DemoLogin onAuthSuccess={() => setIsDemoAuthenticated(true)} />
-          : <Auth />;
+        return <Auth />;
       case AppScreens.main:
         return <Main isMobile={isMobile} />;
       case AppScreens.lock:
@@ -284,18 +257,6 @@ const App = ({
         {renderContent}
       </Transition>
       {activeKey === AppScreens.auth && isTestServer && <div className="test-server-badge">Test server</div>}
-      {IS_MOCKED_CLIENT && activeKey === AppScreens.main && (
-        <button
-          type="button"
-          className={styles.demoLogoutButton}
-          onClick={() => {
-            signOut();
-            setIsDemoAuthenticated(false);
-          }}
-        >
-          Logout
-        </button>
-      )}
       <Notifications />
     </UiLoader>
   );
