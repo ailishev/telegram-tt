@@ -1,46 +1,41 @@
 import {
-  useEffect, useMemo, useState,
+  useEffect, useState,
 } from '../lib/teact/teact';
 
-import { type DemoSession, getStoredSession, getTestCredentials, signIn, signOut } from '../demo/fakeAuth';
+import { type DemoSession, getStoredSession, signInWithPhone, signOut } from '../demo/fakeAuth';
 import { mockChats, mockUser } from '../demo/mockData';
 
 import '../styles/demoApp.scss';
 
 function DemoMessengerApp() {
   const [session, setSession] = useState<DemoSession | undefined>();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | undefined>();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setSession(getStoredSession());
   }, []);
 
-  const credentialsHint = useMemo(() => {
-    const credentials = getTestCredentials();
-    return `Test account: ${credentials.username} / ${credentials.password}`;
-  }, []);
 
-  const handleSignIn = (e: any) => {
+  const handleSignIn = async (e: any) => {
     e.preventDefault();
 
-    const nextSession = signIn(username, password);
-
-    if (!nextSession) {
-      setError('Invalid username or password.');
-      return;
-    }
-
     setError(undefined);
-    setSession(nextSession);
+    setIsLoading(true);
+
+    try {
+      const nextSession = await signInWithPhone('+10000000000');
+      setSession(nextSession);
+    } catch {
+      setError('Failed to sign in to demo backend.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
     signOut();
     setSession(undefined);
-    setUsername('');
-    setPassword('');
     setError(undefined);
   };
 
@@ -49,28 +44,10 @@ function DemoMessengerApp() {
       <div className="demo-login-page">
         <form className="demo-login-card" onSubmit={handleSignIn}>
           <h1>Sign in</h1>
-          <p className="demo-subtitle">Local demo access</p>
+          <p className="demo-subtitle">Supabase demo access</p>
 
-          <label htmlFor="demo-username">Username</label>
-          <input
-            id="demo-username"
-            autoComplete="username"
-            value={username}
-            onInput={(e) => setUsername((e.currentTarget as HTMLInputElement).value)}
-          />
-
-          <label htmlFor="demo-password">Password</label>
-          <input
-            id="demo-password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onInput={(e) => setPassword((e.currentTarget as HTMLInputElement).value)}
-          />
-
-          <button type="submit">Sign in</button>
+          <button type="submit" disabled={isLoading}>{isLoading ? 'Signing in…' : 'Sign in to demo'}</button>
           <p className="demo-error">{error || '\u00A0'}</p>
-          <p className="demo-hint">{credentialsHint}</p>
         </form>
       </div>
     );
