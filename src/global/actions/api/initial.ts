@@ -134,14 +134,21 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
       return;
     }
 
-    const demoSession = await signInWithPhone(global.auth.phoneNumber || '+10000000000');
+    try {
+      const demoSession = await signInWithPhone(global.auth.phoneNumber || '+10000000000');
 
-    setGlobal(updateAuth(getGlobal(), {
-      errorKey: undefined,
-      isLoading: false,
-      phoneNumber: demoSession.phoneNumber,
-      state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
-    }));
+      setGlobal(updateAuth(getGlobal(), {
+        errorKey: undefined,
+        isLoading: false,
+        phoneNumber: demoSession.phoneNumber,
+        state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
+      }));
+    } catch {
+      setGlobal(updateAuth(getGlobal(), {
+        errorKey: { key: 'ErrorCodeInvalid' },
+        isLoading: false,
+      }));
+    }
     return;
   }
 
@@ -204,12 +211,19 @@ addActionHandler('uploadProfilePhoto', async (global, actions, payload): Promise
 addActionHandler('signUp', async (global, actions, payload): Promise<void> => {
   const { firstName, lastName } = payload;
   if (IS_MOCKED_CLIENT) {
-    await completeOnboarding(firstName, lastName);
-    setGlobal(updateAuth(getGlobal(), {
-      isLoading: false,
-      errorKey: undefined,
-      state: 'authorizationStateReady',
-    }));
+    try {
+      await completeOnboarding(firstName, lastName);
+      setGlobal(updateAuth(getGlobal(), {
+        isLoading: false,
+        errorKey: undefined,
+        state: 'authorizationStateReady',
+      }));
+    } catch {
+      setGlobal(updateAuth(getGlobal(), {
+        isLoading: false,
+        errorKey: { key: 'ErrorCodeInvalid' },
+      }));
+    }
     return;
   }
 

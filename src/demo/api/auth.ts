@@ -17,109 +17,47 @@ type OnboardingPayload = {
   bio?: string;
 };
 
-const LOCAL_PROFILES_KEY = 'demo.local.profiles';
-
-function getLocalProfiles() {
-  try {
-    const raw = localStorage.getItem(LOCAL_PROFILES_KEY);
-    if (!raw) return [] as DemoProfileRow[];
-    return JSON.parse(raw) as DemoProfileRow[];
-  } catch {
-    return [] as DemoProfileRow[];
-  }
-}
-
-function saveLocalProfiles(profiles: DemoProfileRow[]) {
-  localStorage.setItem(LOCAL_PROFILES_KEY, JSON.stringify(profiles));
-}
-
-function upsertLocalProfile(profile: DemoProfileRow) {
-  const profiles = getLocalProfiles();
-  const existingIndex = profiles.findIndex((item) => item.phone_number === profile.phone_number || item.id === profile.id);
-  if (existingIndex >= 0) {
-    profiles[existingIndex] = { ...profiles[existingIndex], ...profile };
-  } else {
-    profiles.push(profile);
-  }
-  saveLocalProfiles(profiles);
-  return profiles.find((item) => item.phone_number === profile.phone_number || item.id === profile.id);
-}
-
-function getLocalProfileByPhone(phoneNumber: string) {
-  return getLocalProfiles().find((profile) => profile.phone_number === phoneNumber);
-}
-
 export async function getProfileByPhone(phoneNumber: string, accessToken?: string) {
   if (!isDemoApiConfigured()) {
-    return getLocalProfileByPhone(phoneNumber);
+    throw new Error('Backend auth is not configured');
   }
 
-  try {
-    const profiles = await selectRows<DemoProfileRow>('profiles', '*', `phone_number=eq.${encodeURIComponent(phoneNumber)}`, accessToken);
-    const profile = profiles[0];
-    if (profile) {
-      upsertLocalProfile(profile);
-    }
-    return profile;
-  } catch {
-    return getLocalProfileByPhone(phoneNumber);
-  }
+  const profiles = await selectRows<DemoProfileRow>('profiles', '*', `phone_number=eq.${encodeURIComponent(phoneNumber)}`, accessToken);
+  return profiles[0];
 }
 
 export async function ensureDemoProfile(phoneNumber: string, authUserId?: string, accessToken?: string) {
-  const normalizedPhone = phoneNumber.replace(/\s+/g, '');
+  if (!isDemoApiConfigured()) {
+    throw new Error('Backend auth is not configured');
+  }
 
-  const localProfile = upsertLocalProfile({
-    id: `local_${normalizedPhone.replace(/[^\d]/g, '')}`,
+  const normalizedPhone = phoneNumber.replace(/\s+/g, '');
+  const existing = await getProfileByPhone(normalizedPhone, accessToken);
+
+  if (existing) {
+    if (!existing.auth_user_id && authUserId) {
+      await updateRows('profiles', {
+        auth_user_id: authUserId,
+      }, `id=eq.${existing.id}`, accessToken);
+    }
+    return existing;
+  }
+
+  const inserted = await insertRow('profiles', {
     auth_user_id: authUserId,
     phone_number: normalizedPhone,
-    first_name: getLocalProfileByPhone(normalizedPhone)?.first_name || '',
-    last_name: getLocalProfileByPhone(normalizedPhone)?.last_name || '',
-    username: getLocalProfileByPhone(normalizedPhone)?.username || `user_${Date.now()}`,
-    bio: getLocalProfileByPhone(normalizedPhone)?.bio,
-  });
+    first_name: '',
+    last_name: '',
+    username: `user_${Date.now()}`,
+    display_name: '',
+  }, accessToken) as DemoProfileRow[];
 
-  if (!isDemoApiConfigured()) {
-    return localProfile;
-  }
-
-  try {
-    const existing = await getProfileByPhone(normalizedPhone, accessToken);
-    if (existing) {
-      if (!existing.auth_user_id && authUserId) {
-        await updateRows('profiles', {
-          auth_user_id: authUserId,
-        }, `id=eq.${existing.id}`, accessToken);
-      }
-      return existing;
-    }
-
-    await insertRow('profiles', {
-      auth_user_id: authUserId,
-      phone_number: normalizedPhone,
-      first_name: '',
-      last_name: '',
-      username: `user_${Date.now()}`,
-      display_name: '',
-    }, accessToken);
-  } catch {
-    // local profile already persisted above
-  }
-
-  return localProfile;
+  return inserted[0];
 }
 
 export async function upsertProfileOnboarding(phoneNumber: string, payload: OnboardingPayload, accessToken?: string) {
-  const existingLocal = getLocalProfileByPhone(phoneNumber);
-  upsertLocalProfile({
-    id: existingLocal?.id || `local_${phoneNumber.replace(/[^\d]/g, '')}`,
-    phone_number: phoneNumber,
-    ...existingLocal,
-    ...payload,
-  });
-
   if (!isDemoApiConfigured()) {
-    return;
+    throw new Error('Backend auth is not configured');
   }
 
   const existing = await getProfileByPhone(phoneNumber, accessToken);
