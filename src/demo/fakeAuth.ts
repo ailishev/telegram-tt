@@ -151,3 +151,9 @@ export function signIn(username: string, password: string) {
   void password;
   return undefined;
 }
+
+export function signIn(username: string, password: string) {
+  void username;
+  void password;
+  return undefined;
+}
