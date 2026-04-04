@@ -87,7 +87,7 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
   }));
 }
 
-const completeOnboardingImpl = async (firstName: string, lastName: string) => {
+const completeOnboardingImpl = async (firstName: string, lastName: string): Promise<void> => {
   const session = getStoredSession();
   if (!session) return;
 
@@ -159,6 +159,12 @@ export function signIn(username: string, password: string) {
 }
 
 export function signIn(username: string, password: string) {
+  void username;
+  void password;
+  return undefined;
+}
+
+export function signIn(username: string, password: string): undefined {
   void username;
   void password;
   return undefined;
