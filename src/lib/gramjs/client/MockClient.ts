@@ -89,20 +89,13 @@ class TelegramClient {
       channels: [],
       dialogFilters: [],
       dialogs: {
-        active: [{ id: '1' }],
+        active: [],
         archived: [],
       },
-      messages: {
-        1: [{
-          id: 1,
-          message: 'Saved Messages is ready.',
-          out: true,
-          date: Math.floor(Date.now() / 1000),
-        }],
-      },
+      messages: {},
       availableReactions: [],
       documents: [],
-      topPeers: ['1'],
+      topPeers: [],
     } as MockTypes;
 
     this.callbacks.forEach(({ eventBuilder, callback }) => (callback(

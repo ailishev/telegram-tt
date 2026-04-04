@@ -72,7 +72,7 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
 
   const channels: any[] = [];
 
-  const dialogIds = [currentUserId];
+  const dialogIds: string[] = [];
 
   const messagesByDialog: Record<string, MockMessage[]> = {};
   messages
@@ -93,14 +93,6 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   dialogIds.forEach((peerId) => {
     if (!messagesByDialog[peerId]) messagesByDialog[peerId] = [];
     messagesByDialog[peerId].sort((a, b) => a.id - b.id);
-    if (!messagesByDialog[peerId].length) {
-      messagesByDialog[peerId].push({
-        id: 1,
-        message: 'Saved Messages is ready.',
-        out: true as const,
-        date: Math.floor(Date.now() / 1000),
-      });
-    }
   });
 
   return {
