@@ -108,6 +108,7 @@ addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise
       errorKey: undefined,
       isLoading: true,
       phoneNumber,
+      state: 'authorizationStateWaitPhoneNumber',
     }));
 
     try {
@@ -123,6 +124,7 @@ addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise
       setGlobal(updateAuth(getGlobal(), {
         errorKey: { key: 'ErrorCodeInvalid' },
         isLoading: false,
+        state: 'authorizationStateWaitPhoneNumber',
       }));
     }
 
@@ -141,23 +143,11 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
   const { code } = payload;
 
   if (IS_MOCKED_CLIENT) {
-    const phoneNumber = global.auth.phoneNumber || '+10000000000';
-
-    try {
-      const demoSession = await signInWithPhone(phoneNumber);
-
-      setGlobal(updateAuth(getGlobal(), {
-        errorKey: undefined,
-        isLoading: false,
-        phoneNumber: demoSession.phoneNumber,
-        state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
-      }));
-    } catch {
-      setGlobal(updateAuth(getGlobal(), {
-        errorKey: { key: 'ErrorCodeInvalid' },
-        isLoading: false,
-      }));
-    }
+    setGlobal(updateAuth(global, {
+      errorKey: undefined,
+      isLoading: false,
+      state: 'authorizationStateWaitPhoneNumber',
+    }));
     return;
   }
 
