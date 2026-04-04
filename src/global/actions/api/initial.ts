@@ -33,8 +33,7 @@ import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
-import { ensureDemoProfile } from '../../../demo/api/auth';
-import { getStoredSession, isAllowedDemoPhone, signInWithPhone, signOut, verifyDemoCode } from '../../../demo/fakeAuth';
+import { completeOnboarding, getStoredSession, isAllowedDemoPhone, setPendingPhone, signInWithPhone, signOut, verifyDemoCode } from '../../../demo/fakeAuth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -93,61 +92,65 @@ addActionHandler('initApi', (global, actions): ActionReturnType => {
   }
 });
 
-addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {
+addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise<void> => {
   const { phoneNumber } = payload;
 
   if (IS_MOCKED_CLIENT) {
     if (!isAllowedDemoPhone(phoneNumber)) {
-      return updateAuth(global, {
+      setGlobal(updateAuth(global, {
         errorKey: { key: 'ErrorPhoneNumberInvalid' },
         isLoading: false,
-      });
+      }));
+      return;
     }
 
-    return updateAuth(global, {
+    setPendingPhone(phoneNumber);
+    setGlobal(updateAuth(global, {
       errorKey: undefined,
       isLoading: false,
       phoneNumber,
       state: 'authorizationStateWaitCode',
-    });
+    }));
+    return;
   }
 
   void callApi('provideAuthPhoneNumber', phoneNumber.replace(/[^\d]/g, ''));
 
-  return updateAuth(global, {
+  setGlobal(updateAuth(global, {
     isLoading: true,
     errorKey: undefined,
-  });
+  }));
 });
 
-addActionHandler('setAuthCode', (global, actions, payload): ActionReturnType => {
+addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> => {
   const { code } = payload;
 
   if (IS_MOCKED_CLIENT) {
     if (!verifyDemoCode(code)) {
-      return updateAuth(global, {
+      setGlobal(updateAuth(global, {
         errorKey: { key: 'ErrorCodeInvalid' },
         isLoading: false,
-      });
+      }));
+      return;
     }
 
-    const demoSession = signInWithPhone(global.auth.phoneNumber || '+10000000000');
-    void ensureDemoProfile(demoSession.phoneNumber);
+    const demoSession = await signInWithPhone(global.auth.phoneNumber || '+10000000000');
 
-    return updateAuth(global, {
+    setGlobal(updateAuth(getGlobal(), {
       errorKey: undefined,
       isLoading: false,
       phoneNumber: demoSession.phoneNumber,
-      state: 'authorizationStateReady',
-    });
+      state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
+    }));
+    return;
   }
 
   void callApi('provideAuthCode', code);
 
-  return updateAuth(global, {
+  setGlobal(updateAuth(global, {
     isLoading: true,
     errorKey: undefined,
-  });
+  }));
 });
 
 addActionHandler('setAuthPassword', (global, actions, payload): ActionReturnType => {
@@ -198,15 +201,24 @@ addActionHandler('uploadProfilePhoto', async (global, actions, payload): Promise
   actions.loadFullUser({ userId: global.currentUserId! });
 });
 
-addActionHandler('signUp', (global, actions, payload): ActionReturnType => {
+addActionHandler('signUp', async (global, actions, payload): Promise<void> => {
   const { firstName, lastName } = payload;
+  if (IS_MOCKED_CLIENT) {
+    await completeOnboarding(firstName, lastName);
+    setGlobal(updateAuth(getGlobal(), {
+      isLoading: false,
+      errorKey: undefined,
+      state: 'authorizationStateReady',
+    }));
+    return;
+  }
 
   void callApi('provideAuthRegistration', { firstName, lastName });
 
-  return updateAuth(global, {
+  setGlobal(updateAuth(global, {
     isLoading: true,
     errorKey: undefined,
-  });
+  }));
 });
 
 addActionHandler('returnToAuthPhoneNumber', (global): ActionReturnType => {
