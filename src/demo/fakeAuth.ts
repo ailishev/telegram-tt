@@ -37,7 +37,14 @@ export function getStoredSession(): DemoSession | undefined {
 
   try {
     const parsedSession = JSON.parse(rawSession) as Partial<DemoSession>;
-    if (typeof parsedSession.userId === 'string' && typeof parsedSession.phoneNumber === 'string' && parsedSession.accessToken) {
+    const hasAuthToken = typeof parsedSession.accessToken === 'string' && parsedSession.accessToken.length > 0;
+    const isLocalFallback = parsedSession.isLocalFallback === true;
+
+    if (
+      typeof parsedSession.userId === 'string'
+      && typeof parsedSession.phoneNumber === 'string'
+      && (hasAuthToken || isLocalFallback)
+    ) {
       return parsedSession as DemoSession;
     }
   } catch {
@@ -121,7 +128,7 @@ export { completeOnboardingImpl as completeOnboarding };
 
 export function signOut() {
   const session = getStoredSession();
-  if (session) {
+  if (session?.accessToken) {
     void signOutSupabase(session.accessToken);
   }
   localStorage.removeItem(SESSION_STORAGE_KEY);
