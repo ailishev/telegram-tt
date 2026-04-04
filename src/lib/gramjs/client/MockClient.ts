@@ -92,7 +92,14 @@ class TelegramClient {
         active: [{ id: '1' }],
         archived: [],
       },
-      messages: { 1: [] },
+      messages: {
+        1: [{
+          id: 1,
+          message: 'Saved Messages is ready.',
+          out: true,
+          date: Math.floor(Date.now() / 1000),
+        }],
+      },
       availableReactions: [],
       documents: [],
       topPeers: ['1'],
