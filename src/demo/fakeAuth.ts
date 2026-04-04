@@ -13,11 +13,15 @@ export type DemoSession = {
 const SESSION_STORAGE_KEY = 'demo.local.session';
 const TEMP_PHONE_STORAGE_KEY = 'demo.local.pending_phone';
 
-function normalizePhoneNumber(phoneNumber: string) {
+function normalizePhoneNumber(phoneNumber: string): string {
   return `+${phoneNumber.replace(/[^\d]/g, '')}`;
 }
 
-function fromSupabaseSession(session: SupabaseSession, phoneNumber: string, needsOnboarding: boolean): DemoSession {
+function fromSupabaseSession(
+  session: SupabaseSession,
+  phoneNumber: string,
+  needsOnboarding: boolean,
+): DemoSession {
   return {
     userId: session.user.id,
     phoneNumber,
@@ -50,23 +54,23 @@ export function getStoredSession(): DemoSession | undefined {
   return undefined;
 }
 
-export function setPendingPhone(phoneNumber: string) {
+export function setPendingPhone(phoneNumber: string): void {
   localStorage.setItem(TEMP_PHONE_STORAGE_KEY, normalizePhoneNumber(phoneNumber));
 }
 
-export function getPendingPhone() {
+export function getPendingPhone(): string | undefined {
   return localStorage.getItem(TEMP_PHONE_STORAGE_KEY) || undefined;
 }
 
-export function clearPendingPhone() {
+export function clearPendingPhone(): void {
   localStorage.removeItem(TEMP_PHONE_STORAGE_KEY);
 }
 
-export function isAllowedDemoPhone(phoneNumber: string) {
+export function isAllowedDemoPhone(phoneNumber: string): boolean {
   return normalizePhoneNumber(phoneNumber).length >= 8;
 }
 
-export function verifyDemoCode(code: string) {
+export function verifyDemoCode(code: string): boolean {
   return code.trim() === '11111';
 }
 
@@ -109,7 +113,7 @@ const completeOnboardingImpl = async (firstName: string, lastName: string): Prom
 
 export { completeOnboardingImpl as completeOnboarding };
 
-export function signOut() {
+export function signOut(): void {
   const session = getStoredSession();
   if (session?.accessToken) {
     void signOutSupabase(session.accessToken);
@@ -119,7 +123,12 @@ export function signOut() {
   clearPendingPhone();
 }
 
-export function getTestCredentials() {
+export function getTestCredentials(): {
+  phoneNumber: string;
+  code: string;
+  username: string;
+  password: string;
+} {
   return {
     phoneNumber: '+10000000000',
     code: '11111',
@@ -159,6 +168,12 @@ export function signIn(username: string, password: string) {
 }
 
 export function signIn(username: string, password: string) {
+  void username;
+  void password;
+  return undefined;
+}
+
+export function signIn(username: string, password: string): undefined {
   void username;
   void password;
   return undefined;
