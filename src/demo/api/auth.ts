@@ -1,36 +1,76 @@
-import { insertRow, isDemoApiConfigured, selectRows } from './client';
+import { insertRow, isDemoApiConfigured, selectRows, updateRows } from './client';
 
-type DemoUserRow = {
-  id: number;
-  phone?: string;
+type DemoProfileRow = {
+  id: string;
+  auth_user_id?: string;
+  phone_number?: string;
   first_name?: string;
   last_name?: string;
   username?: string;
-  is_current?: boolean;
+  bio?: string;
 };
 
-export async function ensureDemoProfile(phoneNumber: string) {
+type OnboardingPayload = {
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  bio?: string;
+};
+
+export async function getProfileByPhone(phoneNumber: string, accessToken?: string) {
+  if (!isDemoApiConfigured()) {
+    return undefined;
+  }
+
+  const profiles = await selectRows<DemoProfileRow>('profiles', '*', `phone_number=eq.${encodeURIComponent(phoneNumber)}`, accessToken);
+  return profiles[0];
+}
+
+export async function ensureDemoProfile(phoneNumber: string, authUserId?: string, accessToken?: string) {
   if (!isDemoApiConfigured()) {
     return;
   }
 
   try {
-    const users = await selectRows<DemoUserRow>('users', '*');
     const normalizedPhone = phoneNumber.replace(/\s+/g, '');
-
-    const existing = users.find((user) => user.phone === normalizedPhone);
+    const existing = await getProfileByPhone(normalizedPhone, accessToken);
     if (existing) {
-      return;
+      if (!existing.auth_user_id && authUserId) {
+        await updateRows('profiles', {
+          auth_user_id: authUserId,
+        }, `id=eq.${existing.id}`, accessToken);
+      }
+      return existing;
     }
 
-    await insertRow('users', {
-      phone: normalizedPhone,
-      first_name: 'Test',
-      last_name: 'User',
-      username: `testuser_${Date.now()}`,
-      is_current: true,
-    });
+    await insertRow('profiles', {
+      auth_user_id: authUserId,
+      phone_number: normalizedPhone,
+      first_name: '',
+      last_name: '',
+      username: `user_${Date.now()}`,
+      display_name: '',
+    }, accessToken);
   } catch {
     // Keep mocked flow functional even if profile endpoint is unavailable.
   }
+
+  return undefined;
+}
+
+export async function upsertProfileOnboarding(phoneNumber: string, payload: OnboardingPayload, accessToken?: string) {
+  const existing = await getProfileByPhone(phoneNumber, accessToken);
+  if (existing) {
+    await updateRows('profiles', {
+      ...payload,
+      display_name: [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim(),
+    }, `id=eq.${existing.id}`, accessToken);
+    return;
+  }
+
+  await insertRow('profiles', {
+    phone_number: phoneNumber,
+    ...payload,
+    display_name: [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim(),
+  }, accessToken);
 }
