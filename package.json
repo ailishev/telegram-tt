@@ -18,6 +18,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "db:prepare": "npm run prisma:generate && npm run prisma:migrate:deploy",
+    "build:vercel": "npm run db:prepare && npm run build:production",
     "web:release:production": "npm i && npm run build:production && git add -A && git commit -a -m '[Build]' --no-verify && git push",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
