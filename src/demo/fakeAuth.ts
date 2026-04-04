@@ -85,7 +85,10 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   clearPendingPhone();
 
-  return session;
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+    ...session,
+    needsOnboarding: false,
+  }));
 }
 
 const completeOnboardingImpl = async (firstName: string, lastName: string): Promise<void> => {
