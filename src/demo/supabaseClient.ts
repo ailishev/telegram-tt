@@ -1,45 +1,27 @@
 import type { MockMessage, MockTypes } from '../lib/gramjs/client/mockUtils/MockTypes';
 
-type SupabaseUser = {
-  id: string | number;
+import { getStoredSession } from './fakeAuth';
+import { isDemoApiConfigured, selectRows } from './api/client';
+
+type SupabaseProfile = {
+  id: string;
+  auth_user_id?: string;
+  phone_number?: string;
   username?: string;
   first_name?: string;
   last_name?: string;
-  phone?: string;
-  email?: string;
-  avatar?: string;
-  status?: string;
+  display_name?: string;
   bio?: string;
-  is_current?: boolean;
-};
-
-type SupabaseDialog = {
-  id: string | number;
-  type: 'private' | 'group' | 'channel';
-  title?: string;
-  peer_id: string | number;
-  unread_count?: number;
-  pinned?: boolean;
-  updated_at?: string;
 };
 
 type SupabaseMessage = {
   id: number;
-  dialog_id: string | number;
-  sender_id: string | number;
+  dialog_id: string;
+  sender_profile_id: string;
   content?: string;
-  type?: string;
   created_at?: string;
-  reply_to?: number;
+  reply_to_message_id?: number;
 };
-
-type SupabaseParticipant = {
-  dialog_id: string | number;
-  user_id: string | number;
-  role?: string;
-};
-
-import { isDemoApiConfigured, selectRows } from './api/client';
 
 function toUnixSeconds(date?: string) {
   if (!date) return Math.floor(Date.now() / 1000);
@@ -50,77 +32,66 @@ function toUnixSeconds(date?: string) {
 export const isSupabaseConfigured = isDemoApiConfigured;
 
 export async function buildMockDataFromSupabase(): Promise<MockTypes> {
-  const [users, dialogs, messages, participants] = await Promise.all([
-    selectRows<SupabaseUser>('users', '*'),
-    selectRows<SupabaseDialog>('dialogs', '*'),
-    selectRows<SupabaseMessage>('messages', '*'),
-    selectRows<SupabaseParticipant>('dialog_participants', '*'),
-  ]);
+  const session = getStoredSession();
+  const accessToken = session?.accessToken;
 
-  const currentUser = users.find((user) => user.is_current) || users[0];
-  const currentUserId = String(currentUser?.id || '1');
+  const profiles = await selectRows<SupabaseProfile>('profiles', '*', '', accessToken).catch(() => []);
+  const messages = await selectRows<SupabaseMessage>('messages', '*', '', accessToken).catch(() => []);
 
-  const mockUsers: any[] = users.map((user) => ({
-    id: String(user.id),
-    ...(String(user.id) === currentUserId ? { self: true as const } : undefined),
-    firstName: user.first_name || 'User',
-    lastName: user.last_name || '',
-    username: user.username,
-    phone: user.phone,
-    status: user.status === 'online' ? { wasOnline: undefined } : undefined,
+  const currentProfile = profiles.find((profile) => profile.phone_number === session?.phoneNumber) || profiles[0];
+  const currentUserId = String(currentProfile?.id || session?.userId || '1');
+
+  const visibleDialogs = [{
+    id: currentUserId,
+    type: 'private' as const,
+    title: 'Saved Messages',
+  }];
+
+  const mockUsers: any[] = profiles.map((profile) => ({
+    id: String(profile.id),
+    ...(String(profile.id) === currentUserId ? { self: true as const } : undefined),
+    firstName: profile.first_name || profile.display_name || 'User',
+    lastName: profile.last_name || '',
+    username: profile.username,
+    phone: profile.phone_number,
+    status: undefined,
   }));
 
-  const channels: any[] = dialogs
-    .filter((dialog) => dialog.type !== 'private')
-    .map((dialog) => ({
-      id: String(dialog.peer_id),
-      title: dialog.title || `Dialog ${dialog.id}`,
-      ...(dialog.type === 'group' ? { megagroup: true as const } : undefined),
-      ...(dialog.type === 'channel' ? { broadcast: true as const } : undefined),
-    }));
+  if (!mockUsers.some((user) => user.id === currentUserId)) {
+    mockUsers.unshift({
+      id: currentUserId,
+      self: true as const,
+      firstName: currentProfile?.first_name || 'User',
+      lastName: currentProfile?.last_name || '',
+      username: currentProfile?.username,
+      phone: session?.phoneNumber,
+      status: undefined,
+    });
+  }
 
-  const dialogIds = dialogs.map((dialog) => String(dialog.peer_id));
+  const channels: any[] = [];
+
+  const dialogIds = [currentUserId];
 
   const messagesByDialog: Record<string, MockMessage[]> = {};
+  messages
+    .filter((message) => dialogIds.includes(String(message.dialog_id)))
+    .forEach((message) => {
+      const peerId = String(message.dialog_id);
+      if (!messagesByDialog[peerId]) messagesByDialog[peerId] = [];
 
-  messages.forEach((message) => {
-    const dialog = dialogs.find((item) => String(item.id) === String(message.dialog_id));
-    if (!dialog) return;
-
-    const peerId = String(dialog.peer_id);
-    if (!messagesByDialog[peerId]) {
-      messagesByDialog[peerId] = [];
-    }
-
-    messagesByDialog[peerId].push({
-      id: Number(message.id),
-      message: message.content || '',
-      ...(String(message.sender_id) === currentUserId ? { out: true as const } : undefined),
-      date: toUnixSeconds(message.created_at),
-      ...(message.reply_to ? { replyToMsgId: message.reply_to } : undefined),
+      messagesByDialog[peerId].push({
+        id: Number(message.id),
+        message: message.content || '',
+        ...(String(message.sender_profile_id) === currentUserId ? { out: true as const } : undefined),
+        date: toUnixSeconds(message.created_at),
+        ...(message.reply_to_message_id ? { replyToMsgId: message.reply_to_message_id } : undefined),
+      });
     });
-  });
 
   dialogIds.forEach((peerId) => {
-    if (!messagesByDialog[peerId]) {
-      messagesByDialog[peerId] = [];
-    }
-
+    if (!messagesByDialog[peerId]) messagesByDialog[peerId] = [];
     messagesByDialog[peerId].sort((a, b) => a.id - b.id);
-  });
-
-  participants.forEach((participant) => {
-    const userId = String(participant.user_id);
-    if (!mockUsers.some((user) => user.id === userId)) {
-      mockUsers.push({
-        id: userId,
-        firstName: 'Member',
-        lastName: '',
-        username: undefined,
-        phone: undefined,
-        status: undefined,
-      });
-    }
   });
 
   return {
