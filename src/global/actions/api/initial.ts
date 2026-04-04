@@ -33,7 +33,7 @@ import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
-import { completeOnboarding, getStoredSession, isAllowedDemoPhone, setPendingPhone, signInWithPhone, signOut, verifyDemoCode } from '../../../demo/fakeAuth';
+import { completeOnboarding, getStoredSession, isAllowedDemoPhone, signInWithPhone, signOut } from '../../../demo/fakeAuth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -104,13 +104,28 @@ addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise
       return;
     }
 
-    setPendingPhone(phoneNumber);
     setGlobal(updateAuth(global, {
       errorKey: undefined,
-      isLoading: false,
+      isLoading: true,
       phoneNumber,
-      state: 'authorizationStateWaitCode',
     }));
+
+    try {
+      const demoSession = await signInWithPhone(phoneNumber);
+
+      setGlobal(updateAuth(getGlobal(), {
+        errorKey: undefined,
+        isLoading: false,
+        phoneNumber: demoSession.phoneNumber,
+        state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
+      }));
+    } catch {
+      setGlobal(updateAuth(getGlobal(), {
+        errorKey: { key: 'ErrorCodeInvalid' },
+        isLoading: false,
+      }));
+    }
+
     return;
   }
 
@@ -126,16 +141,10 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
   const { code } = payload;
 
   if (IS_MOCKED_CLIENT) {
-    if (!verifyDemoCode(code)) {
-      setGlobal(updateAuth(global, {
-        errorKey: { key: 'ErrorCodeInvalid' },
-        isLoading: false,
-      }));
-      return;
-    }
+    const phoneNumber = global.auth.phoneNumber || '+10000000000';
 
     try {
-      const demoSession = await signInWithPhone(global.auth.phoneNumber || '+10000000000');
+      const demoSession = await signInWithPhone(phoneNumber);
 
       setGlobal(updateAuth(getGlobal(), {
         errorKey: undefined,
