@@ -14,6 +14,12 @@ type SupabaseProfile = {
   bio?: string;
 };
 
+type SupabaseDialogMember = {
+  dialog_id: string;
+  profile_id: string;
+  role?: string;
+};
+
 type SupabaseMessage = {
   id: number;
   dialog_id: string;
