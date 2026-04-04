@@ -14,12 +14,6 @@ type SupabaseProfile = {
   bio?: string;
 };
 
-type SupabaseDialogMember = {
-  dialog_id: string;
-  profile_id: string;
-  role?: string;
-};
-
 type SupabaseMessage = {
   id: number;
   dialog_id: string;
@@ -45,7 +39,8 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const messages = await selectRows<SupabaseMessage>('messages', '*', '', accessToken).catch(() => []);
 
   const currentProfile = profiles.find((profile) => profile.phone_number === session?.phoneNumber) || profiles[0];
-  const currentUserId = String(currentProfile?.id || session?.userId || '1');
+  const currentProfileId = String(currentProfile?.id || session?.userId || '1');
+  const currentUserId = '1';
 
   const visibleDialogs = [{
     id: currentUserId,
@@ -89,7 +84,7 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
       messagesByDialog[peerId].push({
         id: Number(message.id),
         message: message.content || '',
-        ...(String(message.sender_profile_id) === currentUserId ? { out: true as const } : undefined),
+        ...(String(message.sender_profile_id) === currentProfileId ? { out: true as const } : undefined),
         date: toUnixSeconds(message.created_at),
         ...(message.reply_to_message_id ? { replyToMsgId: message.reply_to_message_id } : undefined),
       });
