@@ -28,11 +28,24 @@ function toEmail(phoneNumber: string) {
   return `phone_${normalized}@local.telegram-tt.dev`;
 }
 
-async function signInWithPassword(email: string): Promise<SupabaseSession | undefined> {
+function buildPasswordCandidates(phoneNumber: string) {
+  const normalizedDigits = phoneNumber.replace(/[^\d]/g, '');
+  const configured = DEMO_AUTH_PASSWORD || '';
+  const safeBase = configured.length >= 6 ? configured : `${configured}_telegram_secure_password`;
+  const deterministic = `${safeBase}:${normalizedDigits}`;
+
+  return Array.from(new Set([
+    deterministic,
+    safeBase,
+    'telegram_tt_dev_password',
+  ]));
+}
+
+async function signInWithPassword(email: string, password: string): Promise<SupabaseSession | undefined> {
   const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ email, password: DEMO_AUTH_PASSWORD }),
+    body: JSON.stringify({ email, password }),
   });
 
   if (!response.ok) {
@@ -42,13 +55,13 @@ async function signInWithPassword(email: string): Promise<SupabaseSession | unde
   return response.json() as Promise<SupabaseSession>;
 }
 
-async function signUp(email: string, phoneNumber: string): Promise<SupabaseSession> {
+async function signUp(email: string, phoneNumber: string, password: string): Promise<SupabaseSession> {
   const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({
       email,
-      password: DEMO_AUTH_PASSWORD,
+      password,
       options: {
         data: {
           phone_number: phoneNumber,
@@ -72,17 +85,21 @@ export async function signInOrSignUpByPhone(phoneNumber: string): Promise<Supaba
   }
 
   const email = toEmail(phoneNumber);
-  const signedIn = await signInWithPassword(email);
-  if (signedIn?.access_token) {
-    return signedIn;
+  const passwordCandidates = buildPasswordCandidates(phoneNumber);
+
+  for (const password of passwordCandidates) {
+    const signedIn = await signInWithPassword(email, password);
+    if (signedIn?.access_token) {
+      return signedIn;
+    }
   }
 
-  const signedUp = await signUp(email, phoneNumber);
+  const signedUp = await signUp(email, phoneNumber, passwordCandidates[0]);
   if (signedUp.access_token) {
     return signedUp;
   }
 
-  const retrySignedIn = await signInWithPassword(email);
+  const retrySignedIn = await signInWithPassword(email, passwordCandidates[0]);
   if (!retrySignedIn?.access_token) {
     throw new Error('Unable to create Supabase session');
   }
