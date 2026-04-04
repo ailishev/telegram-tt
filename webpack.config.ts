@@ -225,8 +225,8 @@ export default function createConfig(
         // eslint-disable-next-line no-null/no-null
         APP_NAME: null,
         APP_TITLE,
-        TELEGRAM_API_ID: undefined,
-        TELEGRAM_API_HASH: undefined,
+        TELEGRAM_API_ID: '',
+        TELEGRAM_API_HASH: '',
         // eslint-disable-next-line no-null/no-null
         TEST_SESSION: null,
         BASE_URL,
