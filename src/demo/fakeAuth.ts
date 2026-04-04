@@ -13,12 +13,6 @@ export type DemoSession = {
 const SESSION_STORAGE_KEY = 'demo.local.session';
 const TEMP_PHONE_STORAGE_KEY = 'demo.local.pending_phone';
 
-const STATIC_DEMO_SESSION = {
-  userId: 'demo-user',
-  accessToken: 'demo-access-token',
-  refreshToken: 'demo-refresh-token',
-} satisfies Pick<DemoSession, 'userId' | 'accessToken' | 'refreshToken'>;
-
 function normalizePhoneNumber(phoneNumber: string): string {
   return `+${phoneNumber.replace(/[^\d]/g, '')}`;
 }
@@ -82,12 +76,7 @@ export function verifyDemoCode(code: string): boolean {
 
 export const signInWithPhone = async (phoneNumber: string): Promise<DemoSession> => {
   const normalizedPhone = normalizePhoneNumber(phoneNumber || '+10000000000');
-
-  const session: DemoSession = {
-    ...STATIC_DEMO_SESSION,
-    phoneNumber: normalizedPhone,
-    needsOnboarding: false,
-  };
+  const supabaseSession = await signInOrSignUpByPhone(normalizedPhone);
 
   await ensureDemoProfile(normalizedPhone, supabaseSession.user.id, supabaseSession.access_token);
   const profile = await getProfileByPhone(normalizedPhone, supabaseSession.access_token);
@@ -99,9 +88,19 @@ export const signInWithPhone = async (phoneNumber: string): Promise<DemoSession>
   return session;
 };
 
-const completeOnboardingImpl = async (_firstName: string, _lastName: string): Promise<void> => {
+const completeOnboardingImpl = async (firstName: string, lastName: string): Promise<void> => {
   const session = getStoredSession();
   if (!session) return;
+
+  await upsertProfileOnboarding(
+    session.phoneNumber,
+    {
+      first_name: firstName,
+      last_name: lastName,
+      username: `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || undefined,
+    },
+    session.accessToken,
+  );
 
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
     ...session,
@@ -112,6 +111,11 @@ const completeOnboardingImpl = async (_firstName: string, _lastName: string): Pr
 export { completeOnboardingImpl as completeOnboarding };
 
 export function signOut(): void {
+  const session = getStoredSession();
+  if (session?.accessToken) {
+    void signOutSupabase(session.accessToken);
+  }
+
   localStorage.removeItem(SESSION_STORAGE_KEY);
   clearPendingPhone();
 }
