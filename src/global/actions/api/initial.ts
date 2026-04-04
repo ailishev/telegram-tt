@@ -9,6 +9,7 @@ import {
   MEDIA_CACHE_NAME_AVATARS,
   MEDIA_PROGRESSIVE_CACHE_NAME,
 } from '../../../config';
+import { IS_MOCKED_CLIENT } from '../../../config';
 import { updateAppBadge } from '../../../util/appBadge';
 import { PASSCODE_IDB_STORE } from '../../../util/browser/idb';
 import { toCredentialRequestOptions } from '../../../util/browser/passkeys';
@@ -32,6 +33,7 @@ import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
+import { getStoredSession, isAllowedDemoPhone, signInWithPhone, signOut, verifyDemoCode } from '../../../demo/fakeAuth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -81,10 +83,33 @@ addActionHandler('initApi', (global, actions): ActionReturnType => {
   });
 
   void setShouldEnableDebugLog(Boolean(shouldCollectDebugLogs));
+  if (IS_MOCKED_CLIENT) {
+    const demoSession = getStoredSession();
+    actions.apiUpdate({
+      '@type': 'updateAuthorizationState',
+      authorizationState: demoSession ? 'authorizationStateReady' : 'authorizationStateWaitPhoneNumber',
+    });
+  }
 });
 
 addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {
   const { phoneNumber } = payload;
+
+  if (IS_MOCKED_CLIENT) {
+    if (!isAllowedDemoPhone(phoneNumber)) {
+      return updateAuth(global, {
+        errorKey: { key: 'ErrorPhoneNumberInvalid' },
+        isLoading: false,
+      });
+    }
+
+    return updateAuth(global, {
+      errorKey: undefined,
+      isLoading: false,
+      phoneNumber,
+      state: 'authorizationStateWaitCode',
+    });
+  }
 
   void callApi('provideAuthPhoneNumber', phoneNumber.replace(/[^\d]/g, ''));
 
@@ -96,6 +121,24 @@ addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnT
 
 addActionHandler('setAuthCode', (global, actions, payload): ActionReturnType => {
   const { code } = payload;
+
+  if (IS_MOCKED_CLIENT) {
+    if (!verifyDemoCode(code)) {
+      return updateAuth(global, {
+        errorKey: { key: 'ErrorCodeInvalid' },
+        isLoading: false,
+      });
+    }
+
+    const demoSession = signInWithPhone(global.auth.phoneNumber || '+10000000000');
+
+    return updateAuth(global, {
+      errorKey: undefined,
+      isLoading: false,
+      phoneNumber: demoSession.phoneNumber,
+      state: 'authorizationStateReady',
+    });
+  }
 
   void callApi('provideAuthCode', code);
 
@@ -165,6 +208,14 @@ addActionHandler('signUp', (global, actions, payload): ActionReturnType => {
 });
 
 addActionHandler('returnToAuthPhoneNumber', (global): ActionReturnType => {
+  if (IS_MOCKED_CLIENT) {
+    return updateAuth(global, {
+      errorKey: undefined,
+      isLoading: false,
+      state: 'authorizationStateWaitPhoneNumber',
+    });
+  }
+
   void callApi('restartAuth');
 
   return updateAuth(global, {
@@ -195,6 +246,10 @@ addActionHandler('saveSession', (global, actions, payload): ActionReturnType => 
 });
 
 addActionHandler('signOut', async (global, actions, payload): Promise<void> => {
+  if (IS_MOCKED_CLIENT) {
+    signOut();
+  }
+
   if ('hangUp' in actions) actions.hangUp({ tabId: getCurrentTabId() });
   if ('leaveGroupCall' in actions) actions.leaveGroupCall({ tabId: getCurrentTabId() });
 
