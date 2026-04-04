@@ -82,14 +82,8 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
 
     return session;
   } catch (err) {
-    const errorMessage = String(err);
-    const isRateLimit = errorMessage.includes('over_email_send_rate_limit');
-    if (!isRateLimit) {
-      throw err;
-    }
-
-    await ensureDemoProfile(normalizedPhone);
-    const profile = await getProfileByPhone(normalizedPhone);
+    await ensureDemoProfile(normalizedPhone).catch(() => undefined);
+    const profile = await getProfileByPhone(normalizedPhone).catch(() => undefined);
 
     const fallbackSession: DemoSession = {
       userId: profile?.id || `local_${normalizedPhone.replace(/[^\d]/g, '')}`,
@@ -114,7 +108,7 @@ async function completeOnboardingImpl(firstName: string, lastName: string) {
     first_name: firstName,
     last_name: lastName,
     username: `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || undefined,
-  }, session.accessToken || undefined);
+  }, session.accessToken || undefined).catch(() => undefined);
 
   const updated: DemoSession = {
     ...session,
