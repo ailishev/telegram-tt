@@ -22,7 +22,9 @@ export async function initGlobal(force: boolean = false, prevGlobal?: GlobalStat
   let global = cache || initial;
   if (IS_MOCKED_CLIENT) {
     const demoSession = getStoredSession();
-    global.auth.state = demoSession ? 'authorizationStateReady' : 'authorizationStateWaitPhoneNumber';
+    global.auth.state = demoSession
+      ? (demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady')
+      : 'authorizationStateWaitPhoneNumber';
     global.auth.phoneNumber = demoSession?.phoneNumber;
   }
 
