@@ -42,7 +42,7 @@ async function signInWithPassword(email: string): Promise<SupabaseSession | unde
   return response.json() as Promise<SupabaseSession>;
 }
 
-async function signUp(email: string): Promise<SupabaseSession> {
+async function signUp(email: string, phoneNumber: string): Promise<SupabaseSession> {
   const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
     method: 'POST',
     headers: getHeaders(),
@@ -50,13 +50,17 @@ async function signUp(email: string): Promise<SupabaseSession> {
       email,
       password: DEMO_AUTH_PASSWORD,
       options: {
+        data: {
+          phone_number: phoneNumber,
+        },
         emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
       },
     }),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to sign up');
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Failed to sign up: ${errorText || response.statusText}`);
   }
 
   return response.json() as Promise<SupabaseSession>;
@@ -73,7 +77,7 @@ export async function signInOrSignUpByPhone(phoneNumber: string): Promise<Supaba
     return signedIn;
   }
 
-  const signedUp = await signUp(email);
+  const signedUp = await signUp(email, phoneNumber);
   if (signedUp.access_token) {
     return signedUp;
   }
