@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum DialogType {
+  saved
+  private
+  group
+  channel
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  authIdentifier String?  @unique
+  phoneNumber    String?  @unique
+  username       String?  @unique
+  firstName      String   @default("")
+  lastName       String   @default("")
+  displayName    String   @default("")
+  bio            String?
+  avatarUrl      String?
+  isVerified     Boolean  @default(false)
+  isPremium      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdDialogs Dialog[]       @relation("DialogCreator")
+  memberships    DialogMember[]
+  sentMessages   Message[]      @relation("MessageSender")
+}
+
+model Dialog {
+  id                 String      @id @default(cuid())
+  type               DialogType
+  title              String?
+  avatarUrl          String?
+  createdByProfileId String?
+  lastMessageId      String?
+  lastMessagePreview String?
+  lastMessageAt      DateTime?
+  unreadCount        Int         @default(0)
+  pinned             Boolean     @default(false)
+  archived           Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  createdBy Profile?      @relation("DialogCreator", fields: [createdByProfileId], references: [id])
+  members   DialogMember[]
+  messages  Message[]
+}
+
+model DialogMember {
+  id        String   @id @default(cuid())
+  dialogId  String
+  profileId String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  dialog  Dialog  @relation(fields: [dialogId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([dialogId, profileId])
+}
+
+model Message {
+  id               String   @id @default(cuid())
+  dialogId         String
+  senderProfileId  String
+  content          String?
+  messageType      String   @default("text")
+  replyToMessageId String?
+  serviceAction    String?
+  metadataJson     Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  dialog Dialog  @relation(fields: [dialogId], references: [id], onDelete: Cascade)
+  sender Profile @relation("MessageSender", fields: [senderProfileId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  profileId  String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
