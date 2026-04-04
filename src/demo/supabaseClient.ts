@@ -42,11 +42,7 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const currentProfileId = String(currentProfile?.id || session?.userId || '1');
   const currentUserId = '1';
 
-  const visibleDialogs = [{
-    id: currentUserId,
-    type: 'private' as const,
-    title: 'Saved Messages',
-  }];
+  const visibleDialogs: Array<{ id: string; type: 'private'; title: string }> = [];
 
   const mockUsers: any[] = profiles.map((profile) => ({
     id: String(profile.id),
