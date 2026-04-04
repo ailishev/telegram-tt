@@ -49,21 +49,26 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const session = getStoredSession();
   const accessToken = session?.accessToken;
 
-  const [profiles, dialogs, dialogMembers, messages] = await Promise.all([
-    selectRows<SupabaseProfile>('profiles', '*', '', accessToken),
-    selectRows<SupabaseDialog>('dialogs', '*', '', accessToken),
-    selectRows<SupabaseDialogMember>('dialog_members', '*', '', accessToken),
-    selectRows<SupabaseMessage>('messages', '*', '', accessToken),
-  ]);
+  const profiles = await selectRows<SupabaseProfile>('profiles', '*', '', accessToken).catch(() => []);
+  const dialogs = await selectRows<SupabaseDialog>('dialogs', '*', '', accessToken).catch(() => []);
+  const dialogMembers = await selectRows<SupabaseDialogMember>('dialog_members', '*', '', accessToken).catch(() => []);
+  const messages = await selectRows<SupabaseMessage>('messages', '*', '', accessToken).catch(() => []);
 
   const currentProfile = profiles.find((profile) => profile.phone_number === session?.phoneNumber) || profiles[0];
-  const currentUserId = String(currentProfile?.id || '1');
+  const currentUserId = String(currentProfile?.id || session?.userId || '1');
 
   const allowedDialogIds = new Set(dialogMembers
     .filter((member) => String(member.profile_id) === currentUserId)
     .map((member) => String(member.dialog_id)));
 
-  const visibleDialogs = dialogs.filter((dialog) => allowedDialogIds.has(String(dialog.id)));
+  let visibleDialogs = dialogs.filter((dialog) => allowedDialogIds.has(String(dialog.id)));
+  if (!visibleDialogs.length) {
+    visibleDialogs = [{
+      id: currentUserId,
+      type: 'private',
+      title: 'Saved Messages',
+    }];
+  }
 
   const mockUsers: any[] = profiles.map((profile) => ({
     id: String(profile.id),
@@ -74,6 +79,18 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
     phone: profile.phone_number,
     status: undefined,
   }));
+
+  if (!mockUsers.some((user) => user.id === currentUserId)) {
+    mockUsers.unshift({
+      id: currentUserId,
+      self: true as const,
+      firstName: currentProfile?.first_name || 'User',
+      lastName: currentProfile?.last_name || '',
+      username: currentProfile?.username,
+      phone: session?.phoneNumber,
+      status: undefined,
+    });
+  }
 
   const channels: any[] = visibleDialogs
     .filter((dialog) => dialog.type !== 'private')
