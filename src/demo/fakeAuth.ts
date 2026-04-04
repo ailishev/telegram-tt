@@ -8,6 +8,7 @@ export type DemoSession = {
   refreshToken: string;
   expiresAt?: number;
   needsOnboarding?: boolean;
+  isLocalFallback?: boolean;
 };
 
 const SESSION_STORAGE_KEY = 'demo.local.session';
@@ -63,22 +64,63 @@ export function isAllowedDemoPhone(phoneNumber: string) {
 }
 
 export function verifyDemoCode(code: string) {
-  return /^\d{5}$/.test(code.trim());
+  return code.trim() === '11111';
 }
 
 export async function signInWithPhone(phoneNumber: string): Promise<DemoSession> {
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
-  const supabaseSession = await signInOrSignUpByPhone(normalizedPhone);
-  await ensureDemoProfile(normalizedPhone, supabaseSession.user.id, supabaseSession.access_token);
+  try {
+    const supabaseSession = await signInOrSignUpByPhone(normalizedPhone);
+    await ensureDemoProfile(normalizedPhone, supabaseSession.user.id, supabaseSession.access_token);
 
-  const profile = await getProfileByPhone(normalizedPhone, supabaseSession.access_token);
-  const needsOnboarding = !profile?.first_name;
+    const profile = await getProfileByPhone(normalizedPhone, supabaseSession.access_token);
+    const needsOnboarding = !profile?.first_name;
 
-  const session = fromSupabaseSession(supabaseSession, normalizedPhone, needsOnboarding);
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-  clearPendingPhone();
+    const session = fromSupabaseSession(supabaseSession, normalizedPhone, needsOnboarding);
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    clearPendingPhone();
 
-  return session;
+    return session;
+  } catch (err) {
+    const errorMessage = String(err);
+    const isRateLimit = errorMessage.includes('over_email_send_rate_limit');
+    if (!isRateLimit) {
+      throw err;
+    }
+
+    await ensureDemoProfile(normalizedPhone);
+    const profile = await getProfileByPhone(normalizedPhone);
+
+    const fallbackSession: DemoSession = {
+      userId: profile?.id || `local_${normalizedPhone.replace(/[^\d]/g, '')}`,
+      phoneNumber: normalizedPhone,
+      accessToken: '',
+      refreshToken: '',
+      needsOnboarding: !profile?.first_name,
+      isLocalFallback: true,
+    };
+
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fallbackSession));
+    clearPendingPhone();
+    return fallbackSession;
+  }
+}
+
+export async function completeOnboarding(firstName: string, lastName: string) {
+  const session = getStoredSession();
+  if (!session) return;
+
+  await upsertProfileOnboarding(session.phoneNumber, {
+    first_name: firstName,
+    last_name: lastName,
+    username: `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || undefined,
+  }, session.accessToken || undefined);
+
+  const updated: DemoSession = {
+    ...session,
+    needsOnboarding: false,
+  };
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
 }
 
 export async function completeOnboarding(firstName: string, lastName: string) {

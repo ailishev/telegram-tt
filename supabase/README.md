@@ -15,6 +15,6 @@
 
 ## Notes
 - The frontend keeps Telegram Web A screen flow and uses the mocked client transport, but all identity/profile/chat source data now comes from Supabase tables when configured.
-- Dev phone-code flow accepts any 5-digit code and maps phone number to a deterministic synthetic email in Supabase Auth.
+- Dev phone-code flow uses a fixed code `11111` and maps phone number to a deterministic synthetic email in Supabase Auth.
 - Password is internal/derived from phone in dev bridge; user still logs in only by phone + code in Telegram UI.
 - TG-like first login onboarding is finalized via RPC `tg_complete_onboarding`.
