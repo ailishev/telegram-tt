@@ -14,14 +14,6 @@ type SupabaseProfile = {
   bio?: string;
 };
 
-type SupabaseDialog = {
-  id: string;
-  type: 'private' | 'group' | 'channel';
-  title?: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
 type SupabaseDialogMember = {
   dialog_id: string;
   profile_id: string;
@@ -50,25 +42,16 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const accessToken = session?.accessToken;
 
   const profiles = await selectRows<SupabaseProfile>('profiles', '*', '', accessToken).catch(() => []);
-  const dialogs = await selectRows<SupabaseDialog>('dialogs', '*', '', accessToken).catch(() => []);
-  const dialogMembers = await selectRows<SupabaseDialogMember>('dialog_members', '*', '', accessToken).catch(() => []);
   const messages = await selectRows<SupabaseMessage>('messages', '*', '', accessToken).catch(() => []);
 
   const currentProfile = profiles.find((profile) => profile.phone_number === session?.phoneNumber) || profiles[0];
   const currentUserId = String(currentProfile?.id || session?.userId || '1');
 
-  const allowedDialogIds = new Set(dialogMembers
-    .filter((member) => String(member.profile_id) === currentUserId)
-    .map((member) => String(member.dialog_id)));
-
-  let visibleDialogs = dialogs.filter((dialog) => allowedDialogIds.has(String(dialog.id)));
-  if (!visibleDialogs.length) {
-    visibleDialogs = [{
-      id: currentUserId,
-      type: 'private',
-      title: 'Saved Messages',
-    }];
-  }
+  const visibleDialogs = [{
+    id: currentUserId,
+    type: 'private' as const,
+    title: 'Saved Messages',
+  }];
 
   const mockUsers: any[] = profiles.map((profile) => ({
     id: String(profile.id),
@@ -92,16 +75,9 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
     });
   }
 
-  const channels: any[] = visibleDialogs
-    .filter((dialog) => dialog.type !== 'private')
-    .map((dialog) => ({
-      id: String(dialog.id),
-      title: dialog.title || `Dialog ${dialog.id}`,
-      ...(dialog.type === 'group' ? { megagroup: true as const } : undefined),
-      ...(dialog.type === 'channel' ? { broadcast: true as const } : undefined),
-    }));
+  const channels: any[] = [];
 
-  const dialogIds = visibleDialogs.map((dialog) => String(dialog.id));
+  const dialogIds = [currentUserId];
 
   const messagesByDialog: Record<string, MockMessage[]> = {};
   messages
