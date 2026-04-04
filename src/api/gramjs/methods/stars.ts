@@ -11,6 +11,8 @@ import type {
   ApiTypeCurrencyAmount,
 } from '../../types';
 
+import { IS_MOCKED_CLIENT } from '../../../config';
+import { getDemoPurchasedGifts, getDemoStarGifts, getDemoStarsBalance } from '../../../demo/demoEconomy';
 import { buildApiChatFromPreview } from '../apiBuilders/chats';
 import {
   buildApiFormattedText,
@@ -77,6 +79,14 @@ export async function fetchStarsGiveawayOptions() {
 }
 
 export async function fetchStarGifts() {
+  if (IS_MOCKED_CLIENT) {
+    return {
+      gifts: getDemoStarGifts(),
+      chats: [],
+      users: [],
+    };
+  }
+
   const result = await invokeRequest(new GramJs.payments.GetStarGifts({
     hash: DEFAULT_PRIMITIVES.INT,
   }));
@@ -175,6 +185,13 @@ export async function fetchSavedStarGifts({
     } satisfies Partial<GetSavedStarGiftsParams>),
   };
 
+  if (IS_MOCKED_CLIENT) {
+    return {
+      gifts: getDemoPurchasedGifts(),
+      nextOffset: undefined,
+    };
+  }
+
   const result = await invokeRequest(new GramJs.payments.GetSavedStarGifts(params));
 
   if (!result) {
@@ -233,6 +250,16 @@ export async function fetchStarsStatus({
 }: {
   isTon?: boolean;
 } = {}) {
+  if (IS_MOCKED_CLIENT) {
+    return {
+      nextHistoryOffset: undefined,
+      history: [],
+      nextSubscriptionOffset: undefined,
+      subscriptions: [],
+      balance: getDemoStarsBalance(),
+    };
+  }
+
   const result = await invokeRequest(new GramJs.payments.GetStarsStatus({
     peer: new GramJs.InputPeerSelf(),
     ton: isTon || undefined,
