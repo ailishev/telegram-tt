@@ -115,7 +115,7 @@ addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise
     setPendingPhone(phoneNumber);
     setGlobal(updateAuth(global, {
       errorKey: undefined,
-      isLoading: false,
+      isLoading: true,
       phoneNumber,
       state: 'authorizationStateWaitCode',
     }));
