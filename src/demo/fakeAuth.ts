@@ -81,13 +81,13 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   clearPendingPhone();
 
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fallbackSession));
-    clearPendingPhone();
-    return fallbackSession;
-  }
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+    ...session,
+    needsOnboarding: false,
+  }));
 }
 
-async function completeOnboardingImpl(firstName: string, lastName: string) {
+const completeOnboardingImpl = async (firstName: string, lastName: string) => {
   const session = getStoredSession();
   if (!session) return;
 
@@ -105,7 +105,7 @@ async function completeOnboardingImpl(firstName: string, lastName: string) {
     ...session,
     needsOnboarding: false,
   }));
-}
+};
 
 export { completeOnboardingImpl as completeOnboarding };
 
@@ -143,6 +143,12 @@ export function signIn(username: string, password: string) {
     return undefined;
   }
 
+  return undefined;
+}
+
+export function signIn(username: string, password: string) {
+  void username;
+  void password;
   return undefined;
 }
 
