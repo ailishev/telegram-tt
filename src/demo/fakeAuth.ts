@@ -74,7 +74,7 @@ export function verifyDemoCode(code: string): boolean {
   return code.trim() === '11111';
 }
 
-export async function signInWithPhone(phoneNumber: string): Promise<DemoSession> {
+export const signInWithPhone = async (phoneNumber: string): Promise<DemoSession> => {
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
   const supabaseSession = await signInOrSignUpByPhone(normalizedPhone);
 
@@ -85,11 +85,8 @@ export async function signInWithPhone(phoneNumber: string): Promise<DemoSession>
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   clearPendingPhone();
 
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-    ...session,
-    needsOnboarding: false,
-  }));
-}
+  return session;
+};
 
 const completeOnboardingImpl = async (firstName: string, lastName: string): Promise<void> => {
   const session = getStoredSession();
