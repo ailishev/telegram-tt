@@ -9,7 +9,8 @@ import type {
   ApiThemeParameters,
 } from '../../types';
 
-import { DEBUG } from '../../../config';
+import { DEBUG, IS_MOCKED_CLIENT } from '../../../config';
+import { buyDemoGift } from '../../../demo/demoEconomy';
 import {
   buildApiBoost,
   buildApiBoostsStatus,
@@ -132,6 +133,15 @@ export async function sendStarPaymentForm({
   formId: string;
   inputInvoice: ApiRequestInputInvoice;
 }) {
+  if (IS_MOCKED_CLIENT) {
+    if (inputInvoice.type === 'stargift') {
+      const wasBought = buyDemoGift(inputInvoice.giftId);
+      return wasBought ? { completed: true } : undefined;
+    }
+
+    return { completed: true };
+  }
+
   const result = await invokeRequest(new GramJs.payments.SendStarsForm({
     formId: BigInt(formId),
     invoice: buildInputInvoice(inputInvoice),

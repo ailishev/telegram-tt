@@ -7,6 +7,7 @@ import {
 } from '../global/index';
 import { INITIAL_GLOBAL_STATE } from '../global/initialState';
 import { updatePasscodeSettings } from '../global/reducers';
+import { getStoredSession } from '../demo/fakeAuth';
 import { cloneDeep } from './iteratees';
 import { clearStoredSession } from './sessions';
 
@@ -19,7 +20,11 @@ export async function initGlobal(force: boolean = false, prevGlobal?: GlobalStat
   const initial = cloneDeep(INITIAL_GLOBAL_STATE);
   const cache = await loadCache(initial);
   let global = cache || initial;
-  if (IS_MOCKED_CLIENT) global.auth.state = 'authorizationStateReady';
+  if (IS_MOCKED_CLIENT) {
+    const demoSession = getStoredSession();
+    global.auth.state = demoSession ? 'authorizationStateReady' : 'authorizationStateWaitPhoneNumber';
+    global.auth.phoneNumber = demoSession?.phoneNumber;
+  }
 
   const { hasPasscode, isScreenLocked } = global.passcode;
   if (hasPasscode && !isScreenLocked) {
