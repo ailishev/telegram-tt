@@ -4,7 +4,7 @@ import { getActions, withGlobal } from '../../../global';
 
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
-import { SettingsScreens, type AnimationLevel, type ThemeKey } from '../../../types';
+import type { AnimationLevel, ThemeKey } from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -78,6 +78,7 @@ const LeftSideMenuItems = ({
 }: OwnProps & StateProps) => {
   const {
     openChat,
+    openChatWithInfo,
     setSharedSettingOption,
     updatePerformanceSettings,
     openChatByUsername,
