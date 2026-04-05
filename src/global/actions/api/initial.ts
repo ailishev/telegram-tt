@@ -40,7 +40,6 @@ import {
   setPendingPhone,
   signInWithPhone,
   signOut,
-  verifyDemoCode,
 } from '../../../demo/fakeAuth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
@@ -135,14 +134,6 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
   const { code } = payload;
 
   if (IS_MOCKED_CLIENT) {
-    if (!verifyDemoCode(code)) {
-      setGlobal(updateAuth(global, {
-        errorKey: { key: 'ErrorCodeInvalid' },
-        isLoading: false,
-      }));
-      return;
-    }
-
     try {
       const demoSession = await signInWithPhone(global.auth.phoneNumber || '+10000000000');
 
