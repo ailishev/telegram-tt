@@ -5,6 +5,7 @@ import { getActions, withGlobal } from '../../../global';
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
 import type { AnimationLevel, ThemeKey } from '../../../types';
+import * as Types from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -83,7 +84,7 @@ const LeftSideMenuItems = ({
     updatePerformanceSettings,
     openChatByUsername,
     openUrl,
-    openChatWithInfo,
+    openSettingsScreen,
   } = getActions();
   const lang = useLang();
 
@@ -97,7 +98,9 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
-    openChatWithInfo({ id: currentUserId, shouldReplaceHistory: true, isOwnProfile: true });
+    // eslint-disable-next-line no-console
+    console.info('[profile] My Profile clicked', { currentUserId });
+    openSettingsScreen({ screen: Types.SettingsScreens.EditProfile });
   });
 
   const handleSelectSaved = useLastCallback(() => {

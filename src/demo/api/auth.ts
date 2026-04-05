@@ -1,100 +1,77 @@
-import { callRpc, insertRow, isDemoApiConfigured, selectRows, updateRows } from './client';
-
-type DemoProfileRow = {
+type ProfilePayload = {
   id: string;
-  auth_user_id?: string;
-  phone_number?: string;
-  first_name?: string;
-  last_name?: string;
+  phoneNumber?: string;
+  firstName?: string;
+  lastName?: string;
   username?: string;
-  bio?: string;
 };
 
-type OnboardingPayload = {
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  bio?: string;
+type SessionPayload = {
+  authenticated: boolean;
+  needsOnboarding?: boolean;
+  profile?: ProfilePayload;
 };
 
-export async function getProfileByPhone(phoneNumber: string, accessToken?: string) {
-  if (!isDemoApiConfigured()) {
-    throw new Error('Backend auth is not configured');
+async function callBackend<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers || {}),
+    },
+    ...init,
+  });
+
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : {};
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Request failed');
   }
 
-  const profiles = await selectRows<DemoProfileRow>('profiles', '*', `phone_number=eq.${encodeURIComponent(phoneNumber)}`, accessToken);
-  return profiles[0];
+  return payload as T;
 }
 
-export async function ensureDemoProfile(phoneNumber: string, authUserId?: string, accessToken?: string) {
-  if (!isDemoApiConfigured()) {
-    throw new Error('Backend auth is not configured');
-  }
-
-  const normalizedPhone = phoneNumber.replace(/\s+/g, '');
-  const existing = await getProfileByPhone(normalizedPhone, accessToken);
-
-  if (existing) {
-    if (!existing.auth_user_id && authUserId) {
-      await updateRows('profiles', {
-        auth_user_id: authUserId,
-      }, `id=eq.${existing.id}`, accessToken);
-    }
-    return existing;
-  }
-
-  const inserted = await insertRow('profiles', {
-    auth_user_id: authUserId,
-    phone_number: normalizedPhone,
-    first_name: '',
-    last_name: '',
-    username: `user_${Date.now()}`,
-    display_name: '',
-  }, accessToken) as DemoProfileRow[];
-
-  return inserted[0];
+export function normalizePhoneNumber(phoneNumber: string): string {
+  return `+${phoneNumber.replace(/[^\d]/g, '')}`;
 }
 
-export async function upsertProfileOnboarding(phoneNumber: string, payload: OnboardingPayload, accessToken?: string) {
-  if (!isDemoApiConfigured()) {
-    throw new Error('Backend auth is not configured');
-  }
-
-  const existing = await getProfileByPhone(phoneNumber, accessToken);
-  if (existing) {
-    await updateRows('profiles', {
-      ...payload,
-      display_name: [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim(),
-    }, `id=eq.${existing.id}`, accessToken);
-    return;
-  }
-
-  await insertRow('profiles', {
-    phone_number: phoneNumber,
-    ...payload,
-    display_name: [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim(),
-  }, accessToken);
+export function isAllowedDemoPhone(phoneNumber: string): boolean {
+  const normalized = normalizePhoneNumber(phoneNumber);
+  return normalized.length >= 8;
 }
 
 export async function requestDemoLoginCode(phoneNumber: string) {
-  if (!isDemoApiConfigured()) {
-    throw new Error('Backend auth is not configured');
-  }
-
-  return callRpc<{ ok: boolean; expires_at: string }>('tg_request_login_code', {
-    p_phone_number: phoneNumber,
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  return callBackend<{ ok: boolean; expiresAt: string }>('/api/auth/request-code', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber: normalizedPhone }),
   });
 }
 
 export async function verifyDemoLoginCode(phoneNumber: string, code: string) {
-  if (!isDemoApiConfigured()) {
-    throw new Error('Backend auth is not configured');
-  }
-
-  const result = await callRpc<{ valid: boolean }>('tg_verify_login_code', {
-    p_phone_number: phoneNumber,
-    p_code: code,
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  return callBackend<{ ok: boolean; needsOnboarding: boolean; profile: ProfilePayload }>('/api/auth/verify-code', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber: normalizedPhone, code }),
   });
+}
 
-  return Boolean(result?.valid);
+export async function getBackendSession() {
+  return callBackend<SessionPayload>('/api/auth/session', { method: 'GET' });
+}
+
+export async function completeProfileOnboarding(firstName: string, lastName: string) {
+  return callBackend<{ ok: boolean; profile: ProfilePayload }>('/api/profile/create', {
+    method: 'POST',
+    body: JSON.stringify({ firstName, lastName }),
+  });
+}
+
+export async function getCurrentProfile() {
+  return callBackend<{ profile: ProfilePayload }>('/api/profile/get-current', { method: 'GET' });
+}
+
+export async function logoutBackendSession() {
+  return callBackend<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
 }
