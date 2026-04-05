@@ -84,6 +84,7 @@ const LeftSideMenuItems = ({
     openChatByUsername,
     openUrl,
     openSettingsScreen,
+    loadCurrentUser,
   } = getActions();
   const lang = useLang();
 
@@ -100,8 +101,9 @@ const LeftSideMenuItems = ({
     // eslint-disable-next-line no-console
     console.info('[profile] my profile clicked', { currentUserId });
     // eslint-disable-next-line no-console
-    console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
-    openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
+    console.info('[profile] action dispatched', { action: 'openSettingsScreen(Main)', currentUserId });
+    loadCurrentUser();
+    openSettingsScreen({ screen: SettingsScreens.Main });
   });
 
   const handleSelectSaved = useLastCallback(() => {
