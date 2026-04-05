@@ -4,7 +4,14 @@ import type { SizeType } from './TelegramClient';
 
 import { GENERAL_TOPIC_ID } from '../../../config';
 import { toJSNumber } from '../../../util/numbers';
-import { buildMockDataFromSupabase, isSupabaseConfigured } from '../../../demo/supabaseClient';
+import {
+  buildMockDataFromSupabase,
+  fetchDialogMessages,
+  isSupabaseConfigured,
+  searchBackend,
+  sendDialogMessage,
+  startPrivateDialog,
+} from '../../../demo/supabaseClient';
 import { Logger } from '../extensions';
 import { UpdateConnectionState } from '../network';
 import Api from '../tl/api';
@@ -322,6 +329,11 @@ class TelegramClient {
       const peerId = getIdFromInputPeer(request.peer);
       if (!peerId) return undefined;
 
+      if (!this.mockData.messages[peerId]) {
+        const backendMessages = await fetchDialogMessages(peerId, this.mockData).catch(() => []);
+        this.mockData.messages[peerId] = backendMessages;
+      }
+
       return new Api.messages.Messages({
         messages: this.getMessagesFrom(peerId),
         chats: [],
@@ -380,6 +392,66 @@ class TelegramClient {
         messages: this.getAllMessages(),
         chats: this.getChatsAndChannels(),
         users: this.getUsers(),
+      });
+    }
+
+    if (request instanceof Api.messages.SendMessage) {
+      const peerId = getIdFromInputPeer(request.peer);
+      if (!peerId) return undefined;
+
+      const content = String(request.message || '');
+      await sendDialogMessage(peerId, content, this.mockData).catch(() => undefined);
+
+      const currentMessages = this.mockData.messages[peerId] || [];
+      const localMessage = {
+        id: (currentMessages[currentMessages.length - 1]?.id || 0) + 1,
+        message: content,
+        out: true,
+        date: Math.floor(Date.now() / 1000),
+      } as any;
+      this.mockData.messages[peerId] = [...currentMessages, localMessage];
+
+      return new Api.Updates({
+        updates: [],
+        users: this.getUsers(),
+        chats: this.getChatsAndChannels(),
+        date: Math.floor(Date.now() / 1000),
+        seq: 1,
+      });
+    }
+
+    if (request instanceof Api.contacts.Search) {
+      const query = request.q || '';
+      const result = await searchBackend(query).catch(() => ({ users: [] }));
+      const users = result.users.map((profile, index) => {
+        const id = (index + 1000).toString();
+        return new Api.User({
+          id: BigInt(id),
+          accessHash: 1n,
+          firstName: profile.firstName || profile.username || 'User',
+          lastName: profile.lastName || '',
+          username: profile.username,
+        });
+      });
+
+      if (query.startsWith('@')) {
+        await startPrivateDialog(query.slice(1)).catch(() => undefined);
+      }
+
+      return new Api.contacts.Found({
+        myResults: [],
+        results: [],
+        chats: [],
+        users,
+      });
+    }
+
+    if (request instanceof Api.messages.SearchGlobal) {
+      return new Api.messages.Messages({
+        messages: [],
+        chats: [],
+        users: this.getUsers(),
+        topics: [],
       });
     }
     return undefined;

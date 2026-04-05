@@ -34,6 +34,13 @@ type BackendDialog = {
   };
 };
 
+type BackendMessage = {
+  id: string;
+  senderProfileId: string;
+  content?: string;
+  createdAt?: string;
+};
+
 function toUnixSeconds(date?: string) {
   if (!date) return Math.floor(Date.now() / 1000);
   const value = Math.floor(new Date(date).getTime() / 1000);
@@ -47,6 +54,23 @@ async function callBackend<T>(path: string): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
     },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend request failed (${path})`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function callBackendPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -96,10 +120,12 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
 
   const dialogIds: string[] = [];
   const messagesByDialog: Record<string, MockMessage[]> = {};
+  const backendDialogByPeerId: Record<string, string> = {};
 
   dialogs.forEach((dialog, index) => {
     const peerId = toNumericId(dialog.peer?.id || dialog.id, index + 2);
     dialogIds.push(peerId);
+    backendDialogByPeerId[peerId] = dialog.id;
 
     if (dialog.peer?.id && !usersById[peerId]) {
       usersById[peerId] = {
@@ -143,5 +169,37 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
     documents: [],
     dialogFilters: [],
     topPeers: dialogIds,
+    backendDialogByPeerId,
   } as MockTypes;
+}
+
+export async function fetchDialogMessages(peerId: string, mockData: MockTypes) {
+  const backendDialogId = (mockData as any).backendDialogByPeerId?.[peerId];
+  if (!backendDialogId) return [] as MockMessage[];
+
+  const payload = await callBackend<{ messages: BackendMessage[] }>(`/api/messages?dialogId=${encodeURIComponent(backendDialogId)}`);
+  return payload.messages.map((message, index) => ({
+    id: index + 1,
+    message: message.content || '',
+    out: false,
+    date: toUnixSeconds(message.createdAt),
+  }));
+}
+
+export async function sendDialogMessage(peerId: string, content: string, mockData: MockTypes) {
+  const backendDialogId = (mockData as any).backendDialogByPeerId?.[peerId];
+  if (!backendDialogId) return;
+
+  await callBackendPost('/api/messages', {
+    dialogId: backendDialogId,
+    content,
+  });
+}
+
+export async function searchBackend(query: string) {
+  return callBackend<{ users: BackendProfile[]; dialogs: BackendDialog[] }>(`/api/search?q=${encodeURIComponent(query)}`);
+}
+
+export async function startPrivateDialog(username: string) {
+  return callBackendPost<{ dialogId: string; created: boolean }>('/api/dialogs/start-private', { username });
 }
