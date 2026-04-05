@@ -5,6 +5,7 @@ import { getActions, withGlobal } from '../../../global';
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
 import type { AnimationLevel, ThemeKey } from '../../../types';
+import { SettingsScreens } from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
