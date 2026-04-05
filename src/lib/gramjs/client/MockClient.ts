@@ -77,6 +77,32 @@ class TelegramClient {
     }
   }
 
+  private loadSavedMessagesOnly() {
+    this.mockData = {
+      users: [{
+        id: '1',
+        self: true,
+        firstName: 'User',
+        lastName: '',
+      } as any],
+      chats: [],
+      channels: [],
+      dialogFilters: [],
+      dialogs: {
+        active: [],
+        archived: [],
+      },
+      messages: {},
+      availableReactions: [],
+      documents: [],
+      topPeers: [],
+    } as MockTypes;
+
+    this.callbacks.forEach(({ eventBuilder, callback }) => (callback(
+      eventBuilder.build(new UpdateConnectionState(UpdateConnectionState.connected)),
+    )));
+  }
+
   async loadScenario(scenario = 'default'): Promise<void> {
     try {
       const invokeMiddleware = await import(`./__invokeMiddlewares__/${scenario}`);
@@ -122,9 +148,12 @@ class TelegramClient {
       if (wasLoaded) {
         return;
       }
+
+      this.loadSavedMessagesOnly();
+      return;
     }
 
-    return this.loadScenario(mockScenario);
+    this.loadSavedMessagesOnly();
   }
 
   async invoke<A, R>(request: Api.Request<A, R>) {
