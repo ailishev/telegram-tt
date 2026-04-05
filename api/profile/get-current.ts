@@ -15,7 +15,16 @@ export default async function handler(req: any, res: any) {
 
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashSessionToken(rawToken) },
-    include: { profile: true },
+    include: {
+      profile: {
+        include: {
+          gifts: {
+            where: { isDisplayed: true },
+            orderBy: { acquiredAt: 'desc' },
+          },
+        },
+      },
+    },
   });
 
   if (!session || session.expiresAt <= new Date()) {
@@ -32,6 +41,17 @@ export default async function handler(req: any, res: any) {
       username: session.profile.username,
       bio: session.profile.bio,
       avatarUrl: session.profile.avatarUrl,
+      isVerified: session.profile.isVerified,
+      isPremium: session.profile.isPremium,
+      gifts: session.profile.gifts.map((gift) => ({
+        id: gift.id,
+        title: gift.title,
+        iconUrl: gift.iconUrl,
+        rarity: gift.rarity,
+        acquiredAt: gift.acquiredAt,
+        isDisplayed: gift.isDisplayed,
+        metadataJson: gift.metadataJson,
+      })),
     },
   });
 }
