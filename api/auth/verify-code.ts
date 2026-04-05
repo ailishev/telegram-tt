@@ -1,4 +1,4 @@
-import { prisma } from '../_lib/prisma';
+import { prisma } from '../_lib/prisma.js';
 import {
   createSessionToken,
   hashSessionToken,
@@ -7,7 +7,7 @@ import {
   parseBody,
   SESSION_TTL,
   setSessionCookie,
-} from '../_lib/http';
+} from '../_lib/http.js';
 
 const MAX_ATTEMPTS = 5;
 
