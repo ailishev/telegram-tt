@@ -32,7 +32,7 @@ export function selectIsUserBlocked<T extends GlobalState>(global: T, userId: st
 export function selectIsCurrentUserPremium<T extends GlobalState>(global: T) {
   if (!global.currentUserId) return false;
 
-  return Boolean(global.users.byId[global.currentUserId].isPremium);
+  return Boolean(global.users.byId[global.currentUserId]?.isPremium);
 }
 
 export function selectIsCurrentUserFrozen<T extends GlobalState>(global: T) {
