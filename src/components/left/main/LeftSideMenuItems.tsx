@@ -5,7 +5,7 @@ import { getActions, withGlobal } from '../../../global';
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
 import type { AnimationLevel, ThemeKey } from '../../../types';
-import { SettingsScreens } from '../../../types';
+import * as Types from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -101,7 +101,7 @@ const LeftSideMenuItems = ({
   const handleSelectMyProfile = useLastCallback(() => {
     // eslint-disable-next-line no-console
     console.info('[profile] My Profile clicked', { currentUserId });
-    openSettingsScreen({ screen: SettingsScreens.EditProfile });
+    openSettingsScreen({ screen: Types.SettingsScreens.EditProfile });
   });
 
   const handleSelectSaved = useLastCallback(() => {
