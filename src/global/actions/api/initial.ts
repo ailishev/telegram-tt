@@ -144,7 +144,7 @@ addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise
       }));
     } catch {
       setGlobal(updateAuth(getGlobal(), {
-        errorKey: { key: 'ErrorCodeInvalid' },
+        errorKey: { key: 'ErrorPhoneNumberInvalid' },
         isLoading: false,
       }));
     }
