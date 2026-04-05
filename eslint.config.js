@@ -231,4 +231,18 @@ export default tseslint.config(
       globals: jestPlugin.environments.globals.globals,
     },
   },
+  {
+    name: 'left-side-menu-import-guard',
+    files: ['src/components/left/main/LeftSideMenuItems.tsx'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          {
+            name: '../settings/types',
+            message: 'Import SettingsScreens from ../../../types instead.',
+          },
+        ],
+      }],
+    },
+  }
 );
