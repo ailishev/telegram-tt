@@ -51,6 +51,14 @@ addActionHandler('updateProfile', async (global, actions, payload): Promise<void
     },
   }, tabId);
   setGlobal(global);
+  // eslint-disable-next-line no-console
+  console.info('[profile] profile save started', {
+    hasPhoto: Boolean(photo),
+    hasFirstName: firstName !== undefined,
+    hasLastName: lastName !== undefined,
+    hasBio: about !== undefined,
+    hasUsername: username !== undefined,
+  });
 
   if (photo) {
     await callApi('uploadProfilePhoto', photo);
@@ -103,6 +111,8 @@ addActionHandler('updateProfile', async (global, actions, payload): Promise<void
   if (photo) {
     actions.loadFullUser({ userId: currentUserId, withPhotos: true });
   }
+  // eslint-disable-next-line no-console
+  console.info('[profile] profile save succeeded', { currentUserId });
 });
 
 addActionHandler('updateBirthday', async (global, actions, payload): Promise<void> => {
