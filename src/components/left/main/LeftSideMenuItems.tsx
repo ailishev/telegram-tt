@@ -40,7 +40,6 @@ import MenuSeparator from '../../ui/MenuSeparator';
 import NestedMenuItem from '../../ui/NestedMenuItem';
 import Switcher from '../../ui/Switcher';
 import Toggle from '../../ui/Toggle';
-import { SettingsScreens } from '../settings/types';
 import AccountMenuItems from './AccountMenuItems';
 
 type OwnProps = {
