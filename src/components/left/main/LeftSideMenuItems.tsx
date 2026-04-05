@@ -4,7 +4,7 @@ import { getActions, withGlobal } from '../../../global';
 
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
-import { SettingsScreens, type AnimationLevel, type ThemeKey } from '../../../types';
+import type { AnimationLevel, ThemeKey } from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -40,7 +40,6 @@ import MenuSeparator from '../../ui/MenuSeparator';
 import NestedMenuItem from '../../ui/NestedMenuItem';
 import Switcher from '../../ui/Switcher';
 import Toggle from '../../ui/Toggle';
-import { SettingsScreens } from '../settings/types';
 import AccountMenuItems from './AccountMenuItems';
 
 type OwnProps = {
@@ -79,6 +78,7 @@ const LeftSideMenuItems = ({
 }: OwnProps & StateProps) => {
   const {
     openChat,
+    openChatWithInfo,
     setSharedSettingOption,
     updatePerformanceSettings,
     openChatByUsername,
@@ -97,7 +97,11 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
-    openSettingsScreen({ screen: SettingsScreens.EditProfile });
+    // eslint-disable-next-line no-console
+    console.info('[profile] my profile clicked', { currentUserId });
+    // eslint-disable-next-line no-console
+    console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
+    openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
   });
 
   const handleSelectSaved = useLastCallback(() => {
