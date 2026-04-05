@@ -1,34 +1,30 @@
-import { ensureDemoProfile, getProfileByPhone, upsertProfileOnboarding } from './api/auth';
-import { signInOrSignUpByPhone, signOutSupabase, type SupabaseSession } from './api/supabaseAuth';
+import {
+  completeProfileOnboarding,
+  getBackendSession,
+  isAllowedDemoPhone,
+  logoutBackendSession,
+  normalizePhoneNumber,
+  verifyDemoLoginCode,
+} from './api/auth';
 
 export type DemoSession = {
   userId: string;
   phoneNumber: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt?: number;
   needsOnboarding?: boolean;
 };
 
 const SESSION_STORAGE_KEY = 'demo.local.session';
 const TEMP_PHONE_STORAGE_KEY = 'demo.local.pending_phone';
 
-function normalizePhoneNumber(phoneNumber: string): string {
-  return `+${phoneNumber.replace(/[^\d]/g, '')}`;
-}
+function toDemoSession(payload: { profile?: { id: string; phoneNumber?: string }; needsOnboarding?: boolean }): DemoSession | undefined {
+  if (!payload.profile?.id || !payload.profile.phoneNumber) {
+    return undefined;
+  }
 
-function fromSupabaseSession(
-  session: SupabaseSession,
-  phoneNumber: string,
-  needsOnboarding: boolean,
-): DemoSession {
   return {
-    userId: session.user.id,
-    phoneNumber,
-    accessToken: session.access_token,
-    refreshToken: session.refresh_token,
-    expiresAt: session.expires_at,
-    needsOnboarding,
+    userId: payload.profile.id,
+    phoneNumber: payload.profile.phoneNumber,
+    needsOnboarding: payload.needsOnboarding,
   };
 }
 
@@ -38,12 +34,10 @@ export function getStoredSession(): DemoSession | undefined {
 
   try {
     const parsedSession = JSON.parse(rawSession) as Partial<DemoSession>;
-    const hasAccessToken = typeof parsedSession.accessToken === 'string' && parsedSession.accessToken.length > 0;
 
     if (
       typeof parsedSession.userId === 'string'
       && typeof parsedSession.phoneNumber === 'string'
-      && hasAccessToken
     ) {
       return parsedSession as DemoSession;
     }
@@ -52,6 +46,28 @@ export function getStoredSession(): DemoSession | undefined {
   }
 
   return undefined;
+}
+
+export async function restoreSession(): Promise<DemoSession | undefined> {
+  try {
+    const payload = await getBackendSession();
+    if (!payload.authenticated) {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return undefined;
+    }
+
+    const restored = toDemoSession(payload);
+    if (!restored) {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return undefined;
+    }
+
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(restored));
+    return restored;
+  } catch {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    return undefined;
+  }
 }
 
 export function setPendingPhone(phoneNumber: string): void {
@@ -66,22 +82,17 @@ export function clearPendingPhone(): void {
   localStorage.removeItem(TEMP_PHONE_STORAGE_KEY);
 }
 
-export function isAllowedDemoPhone(phoneNumber: string): boolean {
-  return normalizePhoneNumber(phoneNumber).length >= 8;
-}
+export { isAllowedDemoPhone };
 
-export function verifyDemoCode(code: string): boolean {
-  return code.trim() === '11111';
-}
+export const signInWithPhone = async (phoneNumber: string, code: string): Promise<DemoSession> => {
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  const verified = await verifyDemoLoginCode(normalizedPhone, code);
+  const session = toDemoSession(verified);
 
-export const signInWithPhone = async (phoneNumber: string): Promise<DemoSession> => {
-  const normalizedPhone = normalizePhoneNumber(phoneNumber || '+10000000000');
-  const supabaseSession = await signInOrSignUpByPhone(normalizedPhone);
+  if (!session) {
+    throw new Error('Unable to create session');
+  }
 
-  await ensureDemoProfile(normalizedPhone, supabaseSession.user.id, supabaseSession.access_token);
-  const profile = await getProfileByPhone(normalizedPhone, supabaseSession.access_token);
-
-  const session = fromSupabaseSession(supabaseSession, normalizedPhone, !profile?.first_name);
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   clearPendingPhone();
 
@@ -92,18 +103,12 @@ const completeOnboardingImpl = async (firstName: string, lastName: string): Prom
   const session = getStoredSession();
   if (!session) return;
 
-  await upsertProfileOnboarding(
-    session.phoneNumber,
-    {
-      first_name: firstName,
-      last_name: lastName,
-      username: `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || undefined,
-    },
-    session.accessToken,
-  );
+  const updated = await completeProfileOnboarding(firstName, lastName);
 
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
     ...session,
+    userId: updated.profile.id,
+    phoneNumber: updated.profile.phoneNumber || session.phoneNumber,
     needsOnboarding: false,
   }));
 };
@@ -111,11 +116,7 @@ const completeOnboardingImpl = async (firstName: string, lastName: string): Prom
 export { completeOnboardingImpl as completeOnboarding };
 
 export function signOut(): void {
-  const session = getStoredSession();
-  if (session?.accessToken) {
-    void signOutSupabase(session.accessToken);
-  }
-
+  void logoutBackendSession();
   localStorage.removeItem(SESSION_STORAGE_KEY);
   clearPendingPhone();
 }
