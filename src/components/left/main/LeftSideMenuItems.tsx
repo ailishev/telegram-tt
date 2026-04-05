@@ -99,8 +99,6 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
-    // eslint-disable-next-line no-console
-    console.info('[profile] My Profile clicked', { currentUserId });
     openSettingsScreen({ screen: Types.SettingsScreens.EditProfile });
   });
 
