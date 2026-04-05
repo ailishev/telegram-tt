@@ -41,6 +41,7 @@ import MenuSeparator from '../../ui/MenuSeparator';
 import NestedMenuItem from '../../ui/NestedMenuItem';
 import Switcher from '../../ui/Switcher';
 import Toggle from '../../ui/Toggle';
+import { SettingsScreens } from '../settings/types';
 import AccountMenuItems from './AccountMenuItems';
 
 type OwnProps = {
@@ -83,7 +84,7 @@ const LeftSideMenuItems = ({
     updatePerformanceSettings,
     openChatByUsername,
     openUrl,
-    openChatWithInfo,
+    openSettingsScreen,
   } = getActions();
   const lang = useLang();
 
@@ -99,12 +100,7 @@ const LeftSideMenuItems = ({
   const handleSelectMyProfile = useLastCallback(() => {
     // eslint-disable-next-line no-console
     console.info('[profile] My Profile clicked', { currentUserId });
-    if (!currentUserId) {
-      // eslint-disable-next-line no-console
-      console.warn('[profile] My Profile aborted: currentUserId is empty');
-      return;
-    }
-    openChatWithInfo({ id: currentUserId, shouldReplaceHistory: true, isOwnProfile: true });
+    openSettingsScreen({ screen: SettingsScreens.EditProfile });
   });
 
   const handleSelectSaved = useLastCallback(() => {
