@@ -309,6 +309,11 @@ function onUpdateServerTimeOffset(update: ApiUpdateServerTimeOffset) {
 
 function onUpdateCurrentUser<T extends GlobalState>(global: T, update: ApiUpdateCurrentUser) {
   const { currentUser, currentUserFullInfo } = update;
+  // eslint-disable-next-line no-console
+  console.info('[store] profile state before', {
+    currentUserId: global.currentUserId,
+    hasCurrentUser: Boolean(global.currentUserId && global.users.byId[global.currentUserId]),
+  });
 
   global = {
     ...updateUser(global, currentUser.id, currentUser),
@@ -316,6 +321,15 @@ function onUpdateCurrentUser<T extends GlobalState>(global: T, update: ApiUpdate
   };
   global = updateUserFullInfo(global, currentUser.id, currentUserFullInfo);
   setGlobal(global);
+  // eslint-disable-next-line no-console
+  console.info('[profile] backend current user/profile loaded', { currentUserId: currentUser.id });
+  // eslint-disable-next-line no-console
+  console.info('[profile] adapted user created', { currentUserId: currentUser.id });
+  // eslint-disable-next-line no-console
+  console.info('[store] profile state after', {
+    currentUserId: global.currentUserId,
+    hasCurrentUser: Boolean(global.currentUserId && global.users.byId[global.currentUserId]),
+  });
 
   updateSessionUserId(currentUser.id);
 }

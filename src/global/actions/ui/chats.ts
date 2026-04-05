@@ -177,6 +177,8 @@ function processChatInfoState<T extends GlobalState>({
     }, tabId);
     global = { ...global, lastIsChatInfoShown: true };
     setGlobal(global);
+    // eslint-disable-next-line no-console
+    console.info('[profile] profile view opened', { tabId, isOwnProfile: newIsOwnProfile, profileTab: newProfileTab });
   });
 }
 
