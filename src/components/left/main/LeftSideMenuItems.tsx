@@ -78,6 +78,7 @@ const LeftSideMenuItems = ({
 }: OwnProps & StateProps) => {
   const {
     openChat,
+    openChatWithInfo,
     setSharedSettingOption,
     updatePerformanceSettings,
     openChatByUsername,

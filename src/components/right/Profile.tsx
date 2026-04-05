@@ -1302,7 +1302,7 @@ export default memo(withGlobal<OwnProps>(
     const storyByIds = peerStories?.byId;
     const archiveStoryIds = peerStories?.archiveIds;
 
-    const hasGiftsTab = (Boolean(peerFullInfo?.starGiftCount) || Boolean(peerFullInfo?.areStarGiftsAvailable))
+    const hasGiftsTab = (Boolean(peerFullInfo?.starGiftCount) || Boolean(chatFullInfo?.areStarGiftsAvailable))
       && !isSavedMessages;
     const activeCollectionId = selectActiveGiftsCollectionId(global, chatId);
     const peerGifts = savedGifts.collectionsByPeerId[chatId]?.[activeCollectionId];
