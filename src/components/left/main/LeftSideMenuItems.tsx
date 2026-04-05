@@ -97,6 +97,13 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
+    // eslint-disable-next-line no-console
+    console.info('[profile] My Profile clicked', { currentUserId });
+    if (!currentUserId) {
+      // eslint-disable-next-line no-console
+      console.warn('[profile] My Profile aborted: currentUserId is empty');
+      return;
+    }
     openChatWithInfo({ id: currentUserId, shouldReplaceHistory: true, isOwnProfile: true });
   });
 

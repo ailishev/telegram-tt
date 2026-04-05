@@ -4,7 +4,14 @@ import type { SizeType } from './TelegramClient';
 
 import { GENERAL_TOPIC_ID } from '../../../config';
 import { toJSNumber } from '../../../util/numbers';
-import { buildMockDataFromSupabase, isSupabaseConfigured } from '../../../demo/supabaseClient';
+import {
+  buildMockDataFromSupabase,
+  fetchDialogMessages,
+  isSupabaseConfigured,
+  searchBackend,
+  sendDialogMessage,
+  startPrivateDialog,
+} from '../../../demo/supabaseClient';
 import { Logger } from '../extensions';
 import { UpdateConnectionState } from '../network';
 import Api from '../tl/api';
@@ -25,6 +32,22 @@ import { downloadFile } from './downloadFile';
 import MockSender from './MockSender';
 
 const sizeTypes: SizeType[] = ['u', 'v', 'w', 'y', 'd', 'x', 'c', 'm', 'b', 'a', 's', 'f'];
+
+async function updateBackendProfile(payload: {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  bio?: string;
+}) {
+  await fetch('/api/profile/update', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
+}
 
 class TelegramClient {
   private invokeMiddleware?: <A, R>(mockClient: TelegramClient, request: Api.Request<A, R>)
@@ -241,17 +264,58 @@ class TelegramClient {
     }
 
     if (request instanceof Api.users.GetFullUser) {
+      const userId = request.id instanceof Api.InputUserSelf
+        ? '1'
+        : request.id instanceof Api.InputUser
+          ? request.id.userId.toString()
+          : '1';
+      const currentUser = this.mockData.users.find((user) => user.id === userId)
+        || this.mockData.users.find((user) => (user as any).self)
+        || this.mockData.users[0];
+      // eslint-disable-next-line no-console
+      console.info('[profile][adapter] GetFullUser', { requestedUserId: userId, resolvedUserId: currentUser?.id });
+
       return new Api.users.UserFull({
         fullUser: new Api.UserFull({
-          about: 'lol',
+          about: (currentUser as any)?.bio || '',
           settings: new Api.PeerSettings({}),
           notifySettings: new Api.PeerNotifySettings({}),
-          id: 1n,
+          id: BigInt(currentUser?.id || '1'),
           commonChatsCount: 0,
+          stargiftsCount: Number((currentUser as any)?.stargiftsCount || 0),
         }),
         chats: [],
-        users: [],
+        users: currentUser ? [createMockedUser(currentUser.id, this.mockData)] : [],
       });
+    }
+
+    if (request instanceof Api.account.UpdateProfile) {
+      const selfUser = this.mockData.users.find((user) => (user as any).self);
+      if (selfUser) {
+        if (request.firstName !== undefined) selfUser.firstName = request.firstName;
+        if (request.lastName !== undefined) selfUser.lastName = request.lastName;
+        if (request.about !== undefined) (selfUser as any).bio = request.about;
+
+        await updateBackendProfile({
+          firstName: request.firstName,
+          lastName: request.lastName,
+          bio: request.about,
+        });
+
+        return createMockedUser(selfUser.id, this.mockData);
+      }
+    }
+
+    if (request instanceof Api.account.UpdateUsername) {
+      const selfUser = this.mockData.users.find((user) => (user as any).self);
+      if (selfUser) {
+        selfUser.username = request.username;
+        await updateBackendProfile({
+          username: request.username,
+        });
+
+        return createMockedUser(selfUser.id, this.mockData);
+      }
     }
 
     if (request instanceof Api.messages.GetAvailableReactions) {
@@ -266,6 +330,11 @@ class TelegramClient {
     if (request instanceof Api.messages.GetHistory) {
       const peerId = getIdFromInputPeer(request.peer);
       if (!peerId) return undefined;
+
+      if (!this.mockData.messages[peerId]) {
+        const backendMessages = await fetchDialogMessages(peerId, this.mockData).catch(() => []);
+        this.mockData.messages[peerId] = backendMessages;
+      }
 
       return new Api.messages.Messages({
         messages: this.getMessagesFrom(peerId),
@@ -325,6 +394,66 @@ class TelegramClient {
         messages: this.getAllMessages(),
         chats: this.getChatsAndChannels(),
         users: this.getUsers(),
+      });
+    }
+
+    if (request instanceof Api.messages.SendMessage) {
+      const peerId = getIdFromInputPeer(request.peer);
+      if (!peerId) return undefined;
+
+      const content = String(request.message || '');
+      await sendDialogMessage(peerId, content, this.mockData).catch(() => undefined);
+
+      const currentMessages = this.mockData.messages[peerId] || [];
+      const localMessage = {
+        id: (currentMessages[currentMessages.length - 1]?.id || 0) + 1,
+        message: content,
+        out: true as const,
+        date: Math.floor(Date.now() / 1000),
+      };
+      this.mockData.messages[peerId] = [...currentMessages, localMessage];
+
+      return new Api.Updates({
+        updates: [],
+        users: this.getUsers(),
+        chats: this.getChatsAndChannels(),
+        date: Math.floor(Date.now() / 1000),
+        seq: 1,
+      });
+    }
+
+    if (request instanceof Api.contacts.Search) {
+      const query = request.q || '';
+      const result = await searchBackend(query).catch(() => ({ users: [] }));
+      const users = result.users.map((profile, index) => {
+        const id = (index + 1000).toString();
+        return new Api.User({
+          id: BigInt(id),
+          accessHash: 1n,
+          firstName: profile.firstName || profile.username || 'User',
+          lastName: profile.lastName || '',
+          username: profile.username,
+        });
+      });
+
+      if (query.startsWith('@')) {
+        await startPrivateDialog(query.slice(1)).catch(() => undefined);
+      }
+
+      return new Api.contacts.Found({
+        myResults: [],
+        results: [],
+        chats: [],
+        users,
+      });
+    }
+
+    if (request instanceof Api.messages.SearchGlobal) {
+      return new Api.messages.Messages({
+        messages: [],
+        chats: [],
+        users: this.getUsers(),
+        topics: [],
       });
     }
     return undefined;
