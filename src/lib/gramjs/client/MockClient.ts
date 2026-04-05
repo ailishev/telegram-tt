@@ -26,6 +26,22 @@ import MockSender from './MockSender';
 
 const sizeTypes: SizeType[] = ['u', 'v', 'w', 'y', 'd', 'x', 'c', 'm', 'b', 'a', 's', 'f'];
 
+async function updateBackendProfile(payload: {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  bio?: string;
+}) {
+  await fetch('/api/profile/update', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
+}
+
 class TelegramClient {
   private invokeMiddleware?: <A, R>(mockClient: TelegramClient, request: Api.Request<A, R>)
   => Promise<R | undefined | 'pass'>;
@@ -241,17 +257,56 @@ class TelegramClient {
     }
 
     if (request instanceof Api.users.GetFullUser) {
+      const userId = request.id instanceof Api.InputUserSelf
+        ? '1'
+        : request.id instanceof Api.InputUser
+          ? request.id.userId.toString()
+          : '1';
+      const currentUser = this.mockData.users.find((user) => user.id === userId)
+        || this.mockData.users.find((user) => (user as any).self)
+        || this.mockData.users[0];
+
       return new Api.users.UserFull({
         fullUser: new Api.UserFull({
-          about: 'lol',
+          about: (currentUser as any)?.bio || '',
           settings: new Api.PeerSettings({}),
           notifySettings: new Api.PeerNotifySettings({}),
-          id: 1n,
+          id: BigInt(currentUser?.id || '1'),
           commonChatsCount: 0,
+          stargiftsCount: Number((currentUser as any)?.stargiftsCount || 0),
         }),
         chats: [],
-        users: [],
+        users: currentUser ? [createMockedUser(currentUser.id, this.mockData)] : [],
       });
+    }
+
+    if (request instanceof Api.account.UpdateProfile) {
+      const selfUser = this.mockData.users.find((user) => (user as any).self);
+      if (selfUser) {
+        if (request.firstName !== undefined) selfUser.firstName = request.firstName;
+        if (request.lastName !== undefined) selfUser.lastName = request.lastName;
+        if (request.about !== undefined) (selfUser as any).bio = request.about;
+
+        await updateBackendProfile({
+          firstName: request.firstName,
+          lastName: request.lastName,
+          bio: request.about,
+        });
+
+        return createMockedUser(selfUser.id, this.mockData);
+      }
+    }
+
+    if (request instanceof Api.account.UpdateUsername) {
+      const selfUser = this.mockData.users.find((user) => (user as any).self);
+      if (selfUser) {
+        selfUser.username = request.username;
+        await updateBackendProfile({
+          username: request.username,
+        });
+
+        return createMockedUser(selfUser.id, this.mockData);
+      }
     }
 
     if (request instanceof Api.messages.GetAvailableReactions) {
