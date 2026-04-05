@@ -514,6 +514,8 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
   const listType = payload.listType;
   let isCallbackFired = false;
   let i = 0;
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loadAllChats started', { listType });
 
   while (!global.chats.isFullyLoaded[listType]) {
     if (i++ >= INFINITE_LOOP_MARKER) {
@@ -535,6 +537,12 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
       listType,
       true,
     );
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loadAllChats iteration', {
+      listType,
+      hasResult: Boolean(result),
+      isFullyLoaded: getGlobal().chats.isFullyLoaded[listType],
+    });
 
     const isFirstBatch = !isCallbackFired;
     if (!isCallbackFired) {
@@ -3248,6 +3256,8 @@ async function loadChats(
   isFullDraftSync?: boolean,
   shouldIgnorePagination?: boolean,
 ) {
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loadChats request', { listType, isFullDraftSync, shouldIgnorePagination });
   let global = getGlobal();
   let lastLocalServiceMessageId = selectLastServiceNotification(global)?.id;
 
@@ -3279,10 +3289,14 @@ async function loadChats(
   });
 
   if (!result) {
+    // eslint-disable-next-line no-console
+    console.warn('[dialogs] loadChats no result', { listType });
     return;
   }
 
   const { chatIds } = result;
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loadChats response', { listType, chatIdsCount: chatIds.length, totalChatCount: result.totalChatCount });
 
   global = getGlobal();
   lastLocalServiceMessageId = selectLastServiceNotification(global)?.id;
@@ -3331,6 +3345,8 @@ async function loadChats(
   }
 
   if ((chatIds.length === 0 || chatIds.length === result.totalChatCount) && !global.chats.isFullyLoaded[listType]) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loadChats set isFullyLoaded=true', { listType, chatIdsCount: chatIds.length });
     global = {
       ...global,
       chats: {
