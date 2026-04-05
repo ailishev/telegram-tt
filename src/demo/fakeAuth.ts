@@ -10,6 +10,7 @@ import {
 export type DemoSession = {
   userId: string;
   phoneNumber: string;
+  accessToken?: string;
   needsOnboarding?: boolean;
 };
 
