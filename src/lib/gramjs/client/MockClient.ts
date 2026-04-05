@@ -406,9 +406,9 @@ class TelegramClient {
       const localMessage = {
         id: (currentMessages[currentMessages.length - 1]?.id || 0) + 1,
         message: content,
-        out: true,
+        out: true as const,
         date: Math.floor(Date.now() / 1000),
-      } as any;
+      };
       this.mockData.messages[peerId] = [...currentMessages, localMessage];
 
       return new Api.Updates({

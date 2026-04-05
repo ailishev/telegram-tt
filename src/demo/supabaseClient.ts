@@ -181,7 +181,6 @@ export async function fetchDialogMessages(peerId: string, mockData: MockTypes) {
   return payload.messages.map((message, index) => ({
     id: index + 1,
     message: message.content || '',
-    out: false,
     date: toUnixSeconds(message.createdAt),
   }));
 }
