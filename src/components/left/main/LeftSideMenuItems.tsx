@@ -4,7 +4,7 @@ import { getActions, withGlobal } from '../../../global';
 
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
-import type { AnimationLevel, ThemeKey } from '../../../types';
+import { SettingsScreens, type AnimationLevel, type ThemeKey } from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -83,7 +83,7 @@ const LeftSideMenuItems = ({
     updatePerformanceSettings,
     openChatByUsername,
     openUrl,
-    openChatWithInfo,
+    openSettingsScreen,
   } = getActions();
   const lang = useLang();
 
@@ -97,7 +97,7 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
-    openChatWithInfo({ id: currentUserId, shouldReplaceHistory: true, isOwnProfile: true });
+    openSettingsScreen({ screen: SettingsScreens.EditProfile });
   });
 
   const handleSelectSaved = useLastCallback(() => {

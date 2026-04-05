@@ -1,26 +1,44 @@
 import type { MockMessage, MockTypes } from '../lib/gramjs/client/mockUtils/MockTypes';
 
 import { getStoredSession } from './fakeAuth';
-import { isDemoApiConfigured, selectRows } from './api/client';
 
-type SupabaseProfile = {
+type BackendProfile = {
   id: string;
-  auth_user_id?: string;
-  phone_number?: string;
+  phoneNumber?: string;
   username?: string;
-  first_name?: string;
-  last_name?: string;
-  display_name?: string;
+  firstName?: string;
+  lastName?: string;
   bio?: string;
+  isVerified?: boolean;
+  isPremium?: boolean;
+  gifts?: Array<{
+    id: string;
+    title: string;
+  }>;
 };
 
-type SupabaseMessage = {
-  id: number;
-  dialog_id: string;
-  sender_profile_id: string;
+type BackendDialog = {
+  id: string;
+  type: 'saved' | 'private' | 'group' | 'channel';
+  title?: string;
+  unreadCount?: number;
+  lastMessagePreview?: string;
+  lastMessageAt?: string;
+  archived?: boolean;
+  pinned?: boolean;
+  peer?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+  };
+};
+
+type BackendMessage = {
+  id: string;
+  senderProfileId: string;
   content?: string;
-  created_at?: string;
-  reply_to_message_id?: number;
+  createdAt?: string;
 };
 
 function toUnixSeconds(date?: string) {
@@ -29,74 +47,127 @@ function toUnixSeconds(date?: string) {
   return Number.isFinite(value) ? value : Math.floor(Date.now() / 1000);
 }
 
-export const isSupabaseConfigured = isDemoApiConfigured;
+async function callBackend<T>(path: string): Promise<T> {
+  const response = await fetch(path, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend request failed (${path})`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function callBackendPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend request failed (${path})`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export const isSupabaseConfigured = () => true;
+
+function toNumericId(input: string, fallback: number) {
+  const numeric = Number(input.replace(/[^\d]/g, '').slice(0, 12));
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return String(numeric);
+  }
+
+  return String(fallback);
+}
 
 export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const session = getStoredSession();
-  const accessToken = session?.accessToken;
+  // eslint-disable-next-line no-console
+  console.info('[dialogs][adapter] buildMockDataFromBackend start', { hasSession: Boolean(session) });
 
-  const profiles = await selectRows<SupabaseProfile>('profiles', '*', '', accessToken).catch(() => []);
-  const messages = await selectRows<SupabaseMessage>('messages', '*', '', accessToken).catch(() => []);
+  const profilePayload = await callBackend<{ profile: BackendProfile }>('/api/profile/get-current').catch(() => ({ profile: undefined }));
+  const dialogsPayload = await callBackend<{ dialogs: BackendDialog[] }>('/api/dialogs').catch(() => ({ dialogs: [] }));
 
-  const currentProfile = profiles.find((profile) => profile.phone_number === session?.phoneNumber) || profiles[0];
-  const currentProfileId = String(currentProfile?.id || session?.userId || '1');
+  const profile = profilePayload.profile;
+  const dialogs = dialogsPayload.dialogs || [];
+  // eslint-disable-next-line no-console
+  console.info('[dialogs][adapter] backend payload', { dialogsCount: dialogs.length, hasProfile: Boolean(profile) });
+
   const currentUserId = '1';
 
-  const visibleDialogs: Array<{ id: string; type: 'private'; title: string }> = [];
-
-  const mockUsers: any[] = profiles.map((profile) => ({
-    id: String(profile.id),
-    ...(String(profile.id) === currentUserId ? { self: true as const } : undefined),
-    firstName: profile.first_name || profile.display_name || 'User',
-    lastName: profile.last_name || '',
-    username: profile.username,
-    phone: profile.phone_number,
-    status: undefined,
-  }));
-
-  if (!mockUsers.some((user) => user.id === currentUserId)) {
-    mockUsers.unshift({
+  const usersById: Record<string, any> = {
+    [currentUserId]: {
       id: currentUserId,
       self: true as const,
-      firstName: currentProfile?.first_name || 'User',
-      lastName: currentProfile?.last_name || '',
-      username: currentProfile?.username,
-      phone: session?.phoneNumber,
-      status: undefined,
-    });
-  }
-
-  const channels: any[] = [];
+      firstName: profile?.firstName || 'User',
+      lastName: profile?.lastName || '',
+      username: profile?.username,
+      phone: profile?.phoneNumber || session?.phoneNumber,
+      verified: Boolean(profile?.isVerified),
+      premium: Boolean(profile?.isPremium),
+      botVerificationIcon: profile?.isVerified ? 1n : undefined,
+      bio: profile?.bio,
+      stargiftsCount: profile?.gifts?.length || 0,
+    },
+  };
 
   const dialogIds: string[] = [];
-
   const messagesByDialog: Record<string, MockMessage[]> = {};
-  messages
-    .filter((message) => dialogIds.includes(String(message.dialog_id)))
-    .forEach((message) => {
-      const peerId = String(message.dialog_id);
-      if (!messagesByDialog[peerId]) messagesByDialog[peerId] = [];
+  const backendDialogByPeerId: Record<string, string> = {};
 
-      messagesByDialog[peerId].push({
-        id: Number(message.id),
-        message: message.content || '',
-        ...(String(message.sender_profile_id) === currentProfileId ? { out: true as const } : undefined),
-        date: toUnixSeconds(message.created_at),
-        ...(message.reply_to_message_id ? { replyToMsgId: message.reply_to_message_id } : undefined),
-      });
-    });
+  dialogs.forEach((dialog, index) => {
+    const peerId = toNumericId(dialog.peer?.id || dialog.id, index + 2);
+    dialogIds.push(peerId);
+    backendDialogByPeerId[peerId] = dialog.id;
 
-  dialogIds.forEach((peerId) => {
-    if (!messagesByDialog[peerId]) messagesByDialog[peerId] = [];
-    messagesByDialog[peerId].sort((a, b) => a.id - b.id);
+    if (dialog.peer?.id && !usersById[peerId]) {
+      usersById[peerId] = {
+        id: peerId,
+        firstName: dialog.peer.firstName || dialog.title || 'User',
+        lastName: dialog.peer.lastName || '',
+        username: dialog.peer.username,
+      };
+    }
+
+    const pseudoMessageId = Number(`${index + 1}${Date.now().toString().slice(-4)}`);
+    messagesByDialog[peerId] = dialog.lastMessagePreview ? [{
+      id: pseudoMessageId,
+      message: dialog.lastMessagePreview,
+      date: toUnixSeconds(dialog.lastMessageAt),
+    }] : [];
   });
 
+  const activeDialogs = dialogIds.map((dialogId, index) => {
+    const backendDialog = dialogs[index];
+    return {
+      id: dialogId,
+      unreadCount: backendDialog?.unreadCount || 0,
+      topMessage: messagesByDialog[dialogId]?.[0]?.id || 0,
+      readInboxMaxId: 0,
+      readOutboxMaxId: 0,
+      pinned: backendDialog?.pinned,
+    };
+  });
+  // eslint-disable-next-line no-console
+  console.info('[dialogs][adapter] adapted payload', { activeDialogsCount: activeDialogs.length, usersCount: Object.keys(usersById).length });
+
   return {
-    users: mockUsers,
+    users: Object.values(usersById),
     chats: [],
-    channels,
+    channels: [],
     dialogs: {
-      active: dialogIds.map((id) => ({ id })),
+      active: activeDialogs,
       archived: [],
     },
     messages: messagesByDialog,
@@ -104,5 +175,36 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
     documents: [],
     dialogFilters: [],
     topPeers: dialogIds,
+    backendDialogByPeerId,
   } as MockTypes;
+}
+
+export async function fetchDialogMessages(peerId: string, mockData: MockTypes) {
+  const backendDialogId = (mockData as any).backendDialogByPeerId?.[peerId];
+  if (!backendDialogId) return [] as MockMessage[];
+
+  const payload = await callBackend<{ messages: BackendMessage[] }>(`/api/messages?dialogId=${encodeURIComponent(backendDialogId)}`);
+  return payload.messages.map((message, index) => ({
+    id: index + 1,
+    message: message.content || '',
+    date: toUnixSeconds(message.createdAt),
+  }));
+}
+
+export async function sendDialogMessage(peerId: string, content: string, mockData: MockTypes) {
+  const backendDialogId = (mockData as any).backendDialogByPeerId?.[peerId];
+  if (!backendDialogId) return;
+
+  await callBackendPost('/api/messages', {
+    dialogId: backendDialogId,
+    content,
+  });
+}
+
+export async function searchBackend(query: string) {
+  return callBackend<{ users: BackendProfile[]; dialogs: BackendDialog[] }>(`/api/search?q=${encodeURIComponent(query)}`);
+}
+
+export async function startPrivateDialog(username: string) {
+  return callBackendPost<{ dialogId: string; created: boolean }>('/api/dialogs/start-private', { username });
 }
