@@ -4,8 +4,7 @@ import { getActions, withGlobal } from '../../../global';
 
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
-import type { AnimationLevel, ThemeKey } from '../../../types';
-import * as Types from '../../../types';
+import { SettingsScreens, type AnimationLevel, type ThemeKey } from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -99,7 +98,7 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
-    openSettingsScreen({ screen: Types.SettingsScreens.EditProfile });
+    openSettingsScreen({ screen: SettingsScreens.EditProfile });
   });
 
   const handleSelectSaved = useLastCallback(() => {
