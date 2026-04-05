@@ -81,6 +81,8 @@ const LeftSideMenuItems = ({
     openChatWithInfo,
     setSharedSettingOption,
     updatePerformanceSettings,
+    loadFullUser,
+    loadPeerSavedGifts,
     openChatByUsername,
     openUrl,
     openSettingsScreen,
@@ -101,9 +103,12 @@ const LeftSideMenuItems = ({
     // eslint-disable-next-line no-console
     console.info('[profile] my profile clicked', { currentUserId });
     // eslint-disable-next-line no-console
-    console.info('[profile] action dispatched', { action: 'openSettingsScreen(Main)', currentUserId });
+    console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
     loadCurrentUser();
-    openSettingsScreen({ screen: SettingsScreens.Main });
+    if (!currentUserId) return;
+    loadFullUser({ userId: currentUserId, withPhotos: true });
+    loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
+    openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
   });
 
   const handleSelectSaved = useLastCallback(() => {
