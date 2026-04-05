@@ -93,12 +93,16 @@ function toNumericId(input: string, fallback: number) {
 
 export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const session = getStoredSession();
+  // eslint-disable-next-line no-console
+  console.info('[dialogs][adapter] buildMockDataFromBackend start', { hasSession: Boolean(session) });
 
   const profilePayload = await callBackend<{ profile: BackendProfile }>('/api/profile/get-current').catch(() => ({ profile: undefined }));
   const dialogsPayload = await callBackend<{ dialogs: BackendDialog[] }>('/api/dialogs').catch(() => ({ dialogs: [] }));
 
   const profile = profilePayload.profile;
   const dialogs = dialogsPayload.dialogs || [];
+  // eslint-disable-next-line no-console
+  console.info('[dialogs][adapter] backend payload', { dialogsCount: dialogs.length, hasProfile: Boolean(profile) });
 
   const currentUserId = '1';
 
@@ -155,6 +159,8 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
       pinned: backendDialog?.pinned,
     };
   });
+  // eslint-disable-next-line no-console
+  console.info('[dialogs][adapter] adapted payload', { activeDialogsCount: activeDialogs.length, usersCount: Object.keys(usersById).length });
 
   return {
     users: Object.values(usersById),

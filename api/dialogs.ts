@@ -2,6 +2,7 @@ import { prisma } from './_lib/prisma.js';
 import { hashSessionToken, readSessionToken } from './_lib/http.js';
 
 export default async function handler(req: any, res: any) {
+  console.info('[dialogs][api] request', { method: req.method });
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -69,6 +70,8 @@ export default async function handler(req: any, res: any) {
       } : undefined,
     };
   });
+
+  console.info('[dialogs][api] response', { dialogsCount: dialogs.length, profileId: session.profileId });
 
   res.status(200).json({ dialogs });
 }

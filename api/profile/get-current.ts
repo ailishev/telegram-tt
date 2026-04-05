@@ -2,6 +2,7 @@ import { prisma } from '../_lib/prisma.js';
 import { hashSessionToken, readSessionToken } from '../_lib/http.js';
 
 export default async function handler(req: any, res: any) {
+  console.info('[profile][api] get-current request', { method: req.method });
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -54,4 +55,5 @@ export default async function handler(req: any, res: any) {
       })),
     },
   });
+  console.info('[profile][api] get-current response', { profileId: session.profile.id, giftsCount: session.profile.gifts.length });
 }

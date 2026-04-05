@@ -111,6 +111,13 @@ addActionHandler('initApi', (global, actions): ActionReturnType => {
           ? (demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady')
           : 'authorizationStateWaitPhoneNumber',
       }));
+      if (demoSession) {
+        const currentGlobal = getGlobal();
+        setGlobal({
+          ...currentGlobal,
+          currentUserId: '1',
+        });
+      }
     })();
   }
 });
@@ -190,6 +197,11 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
         phoneNumber: demoSession.phoneNumber,
         state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
       }));
+      const currentGlobal = getGlobal();
+      setGlobal({
+        ...currentGlobal,
+        currentUserId: '1',
+      });
     } catch {
       setGlobal(updateAuth(getGlobal(), {
         errorKey: { key: 'ErrorCodeInvalid' },

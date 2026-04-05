@@ -272,6 +272,8 @@ class TelegramClient {
       const currentUser = this.mockData.users.find((user) => user.id === userId)
         || this.mockData.users.find((user) => (user as any).self)
         || this.mockData.users[0];
+      // eslint-disable-next-line no-console
+      console.info('[profile][adapter] GetFullUser', { requestedUserId: userId, resolvedUserId: currentUser?.id });
 
       return new Api.users.UserFull({
         fullUser: new Api.UserFull({

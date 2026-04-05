@@ -22,10 +22,13 @@ export async function initGlobal(force: boolean = false, prevGlobal?: GlobalStat
   let global = cache || initial;
   if (IS_MOCKED_CLIENT) {
     const demoSession = await restoreSession() || getStoredSession();
+    // eslint-disable-next-line no-console
+    console.info('[auth] initGlobal mocked session restore', { hasSession: Boolean(demoSession), userId: demoSession?.userId });
     global.auth.state = demoSession
       ? (demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady')
       : 'authorizationStateWaitPhoneNumber';
     global.auth.phoneNumber = demoSession?.phoneNumber;
+    global.currentUserId = demoSession ? '1' : undefined;
   }
 
   const { hasPasscode, isScreenLocked } = global.passcode;
