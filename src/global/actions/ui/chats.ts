@@ -110,6 +110,14 @@ addActionHandler('openPreviousChat', (global, actions, payload): ActionReturnTyp
 
 addActionHandler('openChatWithInfo', (global, actions, payload): ActionReturnType => {
   const { profileTab, forceScrollProfileTab, isOwnProfile, tabId = getCurrentTabId(), ...rest } = payload;
+  // eslint-disable-next-line no-console
+  console.info('[profile] openChatWithInfo called', { chatId: rest.id, tabId, isOwnProfile });
+
+  if (!rest.id) {
+    // eslint-disable-next-line no-console
+    console.warn('[profile] openChatWithInfo skipped: missing chat id');
+    return;
+  }
 
   const currentMessageList = selectCurrentMessageList(global, tabId);
   const isSameMessageList = currentMessageList?.chatId === rest.id

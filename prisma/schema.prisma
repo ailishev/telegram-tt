@@ -4,10 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  
-   
-  url       = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-  directUrl = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum DialogType {
@@ -35,6 +33,26 @@ model Profile {
   createdDialogs Dialog[]       @relation("DialogCreator")
   memberships    DialogMember[]
   sentMessages   Message[]      @relation("MessageSender")
+  sessions       Session[]
+  gifts          ProfileGift[]
+
+}
+
+model ProfileGift {
+  id          String   @id @default(cuid())
+  profileId   String
+  title       String
+  iconUrl     String?
+  rarity      String?
+  metadataJson Json?
+  isDisplayed Boolean  @default(true)
+  acquiredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, acquiredAt])
 }
 
 model Dialog {
@@ -55,6 +73,7 @@ model Dialog {
   createdBy Profile?      @relation("DialogCreator", fields: [createdByProfileId], references: [id])
   members   DialogMember[]
   messages  Message[]
+
 }
 
 model DialogMember {
@@ -84,6 +103,19 @@ model Message {
 
   dialog Dialog  @relation(fields: [dialogId], references: [id], onDelete: Cascade)
   sender Profile @relation("MessageSender", fields: [senderProfileId], references: [id], onDelete: Cascade)
+
+}
+
+model VerificationCode {
+  id           String   @id @default(cuid())
+  phoneNumber  String
+  code         String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  isUsed       Boolean  @default(false)
+  attemptsCount Int     @default(0)
+
+  @@index([phoneNumber, createdAt])
 }
 
 model Session {
@@ -93,4 +125,8 @@ model Session {
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
