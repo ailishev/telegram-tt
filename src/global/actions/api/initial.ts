@@ -41,6 +41,7 @@ import {
   signInWithPhone,
   signOut,
 } from '../../../demo/fakeAuth';
+import { requestDemoLoginCode, verifyDemoLoginCode } from '../../../demo/api/auth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -111,13 +112,27 @@ addActionHandler('setAuthPhoneNumber', async (global, actions, payload): Promise
       return;
     }
 
-    setPendingPhone(phoneNumber);
     setGlobal(updateAuth(global, {
       errorKey: undefined,
       isLoading: true,
       phoneNumber,
-      state: 'authorizationStateWaitCode',
     }));
+
+    try {
+      await requestDemoLoginCode(phoneNumber);
+      setPendingPhone(phoneNumber);
+      setGlobal(updateAuth(getGlobal(), {
+        errorKey: undefined,
+        isLoading: false,
+        phoneNumber,
+        state: 'authorizationStateWaitCode',
+      }));
+    } catch {
+      setGlobal(updateAuth(getGlobal(), {
+        errorKey: { key: 'ErrorCodeInvalid' },
+        isLoading: false,
+      }));
+    }
 
     return;
   }
@@ -135,7 +150,17 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
 
   if (IS_MOCKED_CLIENT) {
     try {
-      const demoSession = await signInWithPhone(global.auth.phoneNumber || '+10000000000');
+      const phoneNumber = global.auth.phoneNumber || '+10000000000';
+      const isValidCode = await verifyDemoLoginCode(phoneNumber, code);
+      if (!isValidCode) {
+        setGlobal(updateAuth(global, {
+          errorKey: { key: 'ErrorCodeInvalid' },
+          isLoading: false,
+        }));
+        return;
+      }
+
+      const demoSession = await signInWithPhone(phoneNumber);
 
       setGlobal(updateAuth(getGlobal(), {
         errorKey: undefined,

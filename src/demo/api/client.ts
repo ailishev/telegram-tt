@@ -83,3 +83,22 @@ export async function updateRows<T extends object>(table: string, body: T, filte
 
   return response.json();
 }
+
+export async function callRpc<TResponse = unknown>(
+  functionName: string,
+  payload: Record<string, unknown> = {},
+  accessToken?: string,
+): Promise<TResponse> {
+  const url = `${SUPABASE_REST_BASE_URL}/rest/v1/rpc/${functionName}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`RPC failed for ${functionName}`);
+  }
+
+  return response.json() as Promise<TResponse>;
+}

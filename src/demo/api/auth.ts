@@ -1,4 +1,4 @@
-import { insertRow, isDemoApiConfigured, selectRows, updateRows } from './client';
+import { callRpc, insertRow, isDemoApiConfigured, selectRows, updateRows } from './client';
 
 type DemoProfileRow = {
   id: string;
@@ -74,4 +74,27 @@ export async function upsertProfileOnboarding(phoneNumber: string, payload: Onbo
     ...payload,
     display_name: [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim(),
   }, accessToken);
+}
+
+export async function requestDemoLoginCode(phoneNumber: string) {
+  if (!isDemoApiConfigured()) {
+    throw new Error('Backend auth is not configured');
+  }
+
+  return callRpc<{ ok: boolean; expires_at: string }>('tg_request_login_code', {
+    p_phone_number: phoneNumber,
+  });
+}
+
+export async function verifyDemoLoginCode(phoneNumber: string, code: string) {
+  if (!isDemoApiConfigured()) {
+    throw new Error('Backend auth is not configured');
+  }
+
+  const result = await callRpc<{ valid: boolean }>('tg_verify_login_code', {
+    p_phone_number: phoneNumber,
+    p_code: code,
+  });
+
+  return Boolean(result?.valid);
 }
