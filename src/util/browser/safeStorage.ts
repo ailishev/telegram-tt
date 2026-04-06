@@ -21,6 +21,19 @@ const memoryStorage: Storage = {
   },
 };
 
-// NOTE: intentionally memory-only for now.
-// This disables persistence between page reloads, which is required for local-auth testing flows.
-export const safeStorage: Storage = memoryStorage;
+function getBrowserStorage(): Storage | undefined {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return undefined;
+  }
+
+  try {
+    const testKey = '__safe_storage_probe__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  } catch (err) {
+    return undefined;
+  }
+}
+
+export const safeStorage: Storage = getBrowserStorage() || memoryStorage;

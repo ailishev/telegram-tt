@@ -45,7 +45,6 @@ import {
 import { isLocalMessageId } from '../../../util/keys/messageKey';
 import * as langProvider from '../../../util/oldLangProvider';
 import { debounce, pause, throttle } from '../../../util/schedulers';
-import { loadStoredSession } from '../../../util/sessions';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
 import { callApi } from '../../../api/gramjs';
 import {
@@ -520,10 +519,7 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
 
   const localSessionRestored = Boolean(global.currentUserId);
   const linkedTelegramSession = Boolean(global.currentUserId && isNumericPeerId(global.currentUserId));
-  const hasTelegramAuthKey = Boolean(Object.values(loadStoredSession()?.keys || {}).length);
-  const isTelegramSessionValid = linkedTelegramSession
-    && hasTelegramAuthKey
-    && global.auth.state === 'authorizationStateReady';
+  const isTelegramSessionValid = global.auth.state === 'authorizationStateReady';
   // eslint-disable-next-line no-console
   console.info('[auth] local session restored =', localSessionRestored);
   // eslint-disable-next-line no-console
@@ -1226,10 +1222,7 @@ addActionHandler('toggleSavedDialogPinned', (global, actions, payload): ActionRe
 addActionHandler('loadChatFolders', async (global): Promise<void> => {
   const currentUserId = global.currentUserId;
   const linkedTelegramSession = Boolean(currentUserId && isNumericPeerId(currentUserId));
-  const hasTelegramAuthKey = Boolean(Object.values(loadStoredSession()?.keys || {}).length);
-  const isTelegramSessionValid = linkedTelegramSession
-    && hasTelegramAuthKey
-    && global.auth.state === 'authorizationStateReady';
+  const isTelegramSessionValid = global.auth.state === 'authorizationStateReady';
   // eslint-disable-next-line no-console
   console.info('[telegram] linked session found =', linkedTelegramSession);
   // eslint-disable-next-line no-console
@@ -3329,19 +3322,14 @@ async function loadChats(
   const currentUser = currentUserId ? selectUser(global, currentUserId) : undefined;
   const isTelegramAuthReady = global.auth.state === 'authorizationStateReady';
   const isTelegramLinked = Boolean(currentUserId && isNumericPeerId(currentUserId) && currentUser);
-  const hasTelegramAuthKey = Boolean(Object.values(loadStoredSession()?.keys || {}).length);
 
-  // eslint-disable-next-line no-console
-  console.info('[telegram] auth key present =', hasTelegramAuthKey);
-
-  if (!isTelegramAuthReady || !isTelegramLinked || !hasTelegramAuthKey) {
+  if (!isTelegramAuthReady || (listType === 'saved' && !isTelegramLinked)) {
     // eslint-disable-next-line no-console
     console.info('[dialogs] skipped because telegram not linked', {
       listType,
       currentUserId,
       isTelegramAuthReady,
       isTelegramLinked,
-      hasTelegramAuthKey,
     });
     global = replaceChatListIds(global, listType, []);
     global = {

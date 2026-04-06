@@ -193,8 +193,14 @@ addActionHandler('loadCurrentUser', (): ActionReturnType => {
 
       if (!data.profile?.id) return;
 
+      const currentGlobal = getGlobal();
+      const linkedCurrentUserId = currentGlobal.currentUserId;
+      const resolvedUserId = linkedCurrentUserId && isNumericPeerId(linkedCurrentUserId)
+        ? linkedCurrentUserId
+        : data.profile.id;
+
       const fallbackUser: ApiUser = {
-        id: data.profile.id,
+        id: resolvedUserId,
         isMin: false,
         isSelf: true,
         type: 'userTypeRegular',
@@ -213,10 +219,12 @@ addActionHandler('loadCurrentUser', (): ActionReturnType => {
         bio: data.profile.bio,
         starGiftCount: data.profile.gifts?.length,
       });
-      global = {
-        ...global,
-        currentUserId: fallbackUser.id,
-      };
+      if (isNumericPeerId(fallbackUser.id)) {
+        global = {
+          ...global,
+          currentUserId: fallbackUser.id,
+        };
+      }
       setGlobal(global);
 
       // eslint-disable-next-line no-console
