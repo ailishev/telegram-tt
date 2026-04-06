@@ -1,6 +1,10 @@
 import { CHANNEL_ID_BASE } from '../../config';
 import { toJSNumber } from '../numbers';
 
+export function isNumericPeerId(id: string) {
+  return /^-?\d+$/.test(id);
+}
+
 export function isUserId(entityId: string) {
   return !entityId.startsWith('-');
 }

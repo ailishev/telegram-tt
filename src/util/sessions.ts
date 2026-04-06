@@ -7,7 +7,19 @@ import {
   SESSION_ACCOUNT_PREFIX,
   SESSION_LEGACY_USER_KEY,
 } from '../config';
+import { isNumericPeerId } from './entities/ids';
 import { ACCOUNT_SLOT, storeAccountData, writeSlotSession } from './multiaccount';
+
+const safeStorage: Storage = typeof globalThis !== 'undefined' && 'localStorage' in globalThis
+  ? globalThis.localStorage
+  : {
+    getItem: () => null,
+    setItem: () => undefined,
+    removeItem: () => undefined,
+    clear: () => undefined,
+    key: () => null,
+    length: 0,
+  };
 
 export function hasStoredSession() {
   if (checkSessionLocked()) {
@@ -18,11 +30,13 @@ export function hasStoredSession() {
   if (slotData) return Boolean(slotData.dcId);
 
   if (!ACCOUNT_SLOT) {
-    const legacyAuthJson = localStorage.getItem(SESSION_LEGACY_USER_KEY);
+    const legacyAuthJson = safeStorage.getItem(SESSION_LEGACY_USER_KEY);
     if (legacyAuthJson) {
       try {
         const userAuth = JSON.parse(legacyAuthJson);
-        return Boolean(userAuth && userAuth.id && userAuth.dcID);
+        if (!userAuth || !userAuth.dcID) return false;
+        if (userAuth.id && !isNumericPeerId(String(userAuth.id))) return false;
+        return true;
       } catch (err) {
         // Do nothing.
         return false;
@@ -61,14 +75,14 @@ function storeLegacySession(sessionData: ApiSessionData, currentUserId?: string)
     mainDcId, keys, isTest,
   } = sessionData;
 
-  localStorage.setItem(SESSION_LEGACY_USER_KEY, JSON.stringify({
+  safeStorage.setItem(SESSION_LEGACY_USER_KEY, JSON.stringify({
     dcID: mainDcId,
     id: currentUserId,
     test: isTest,
   }));
-  localStorage.setItem('dc', String(mainDcId));
+  safeStorage.setItem('dc', String(mainDcId));
   Object.keys(keys).map(Number).forEach((dcId) => {
-    localStorage.setItem(`dc${dcId}_auth_key`, JSON.stringify(keys[dcId]));
+    safeStorage.setItem(`dc${dcId}_auth_key`, JSON.stringify(keys[dcId]));
   });
 }
 
@@ -77,7 +91,7 @@ export function clearStoredSession(slot?: number) {
     clearStoredLegacySession();
   }
 
-  localStorage.removeItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`);
+  safeStorage.removeItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`);
 }
 
 function clearStoredLegacySession() {
@@ -88,7 +102,7 @@ function clearStoredLegacySession() {
     ...DC_IDS.map((dcId) => `dc${dcId}_hash`),
     ...DC_IDS.map((dcId) => `dc${dcId}_server_salt`),
   ].forEach((key) => {
-    localStorage.removeItem(key);
+    safeStorage.removeItem(key);
   });
 }
 
@@ -102,6 +116,10 @@ export function loadStoredSession(): ApiSessionData | undefined {
   if (!slotData) {
     if (ACCOUNT_SLOT) return undefined;
     return loadStoredLegacySession();
+  }
+
+  if (slotData.userId && !isNumericPeerId(slotData.userId)) {
+    return undefined;
   }
 
   const sessionData: ApiSessionData = {
@@ -124,8 +142,11 @@ function loadStoredLegacySession(): ApiSessionData | undefined {
     return undefined;
   }
 
-  const userAuth = JSON.parse(localStorage.getItem(SESSION_LEGACY_USER_KEY) || 'null');
+  const userAuth = JSON.parse(safeStorage.getItem(SESSION_LEGACY_USER_KEY) || 'null');
   if (!userAuth) {
+    return undefined;
+  }
+  if (userAuth.id && !isNumericPeerId(String(userAuth.id))) {
     return undefined;
   }
   const mainDcId = Number(userAuth.dcID);
@@ -134,7 +155,7 @@ function loadStoredLegacySession(): ApiSessionData | undefined {
 
   DC_IDS.forEach((dcId) => {
     try {
-      const key = localStorage.getItem(`dc${dcId}_auth_key`);
+      const key = safeStorage.getItem(`dc${dcId}_auth_key`);
       if (key) {
         keys[dcId] = JSON.parse(key);
       }
@@ -158,7 +179,7 @@ function loadStoredLegacySession(): ApiSessionData | undefined {
 
 export function loadSlotSession(slot: number | undefined): SharedSessionData | undefined {
   try {
-    const data = JSON.parse(localStorage.getItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`) || '{}') as SharedSessionData;
+    const data = JSON.parse(safeStorage.getItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`) || '{}') as SharedSessionData;
     if (!data.dcId) return undefined;
     return data;
   } catch (e) {
@@ -186,5 +207,5 @@ export function importTestSession() {
 }
 
 export function checkSessionLocked() {
-  return localStorage.getItem(IS_SCREEN_LOCKED_CACHE_KEY) === 'true';
+  return safeStorage.getItem(IS_SCREEN_LOCKED_CACHE_KEY) === 'true';
 }

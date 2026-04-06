@@ -448,10 +448,27 @@ export async function fetchCurrentUser() {
 
   currentUserId = currentUser.id;
   setIsPremium({ isPremium: Boolean(currentUser.isPremium) });
+
+  return {
+    currentUser,
+    currentUserFullInfo,
+  };
 }
 
 export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {
   const message = err instanceof RPCError ? err.errorMessage : err.message;
+  const isTerminatedSessionError = message === 'AUTH_KEY_UNREGISTERED'
+    || message === 'SESSION_REVOKED'
+    || message === 'USER_DEACTIVATED';
+
+  if (isTerminatedSessionError) {
+    sendApiUpdate({
+      '@type': 'updateConnectionState',
+      connectionState: 'connectionStateBroken',
+    });
+    return;
+  }
+
   const isSlowMode = message === 'FLOOD' && (
     request instanceof GramJs.messages.SendMessage
     || request instanceof GramJs.messages.SendMedia

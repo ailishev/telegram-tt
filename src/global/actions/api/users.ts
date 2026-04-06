@@ -3,7 +3,7 @@ import type { ActionReturnType } from '../../types';
 import { ManagementProgress } from '../../../types';
 
 import { BOT_VERIFICATION_PEERS_LIMIT } from '../../../config';
-import { isUserId } from '../../../util/entities/ids';
+import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey, unique } from '../../../util/iteratees';
 import * as langProvider from '../../../util/oldLangProvider';
@@ -48,6 +48,9 @@ const runThrottledForSearch = throttle((cb) => cb(), 500, false);
 
 addActionHandler('loadFullUser', async (global, actions, payload): Promise<void> => {
   const { userId, withPhotos } = payload;
+  if (!isNumericPeerId(userId)) {
+    return;
+  }
   const user = selectUser(global, userId);
   if (!user) {
     return;
@@ -158,7 +161,93 @@ addActionHandler('loadContactList', async (global): Promise<void> => {
 });
 
 addActionHandler('loadCurrentUser', (): ActionReturnType => {
-  void callApi('fetchCurrentUser');
+  void (async () => {
+    // eslint-disable-next-line no-console
+    console.info('[profile] action dispatched', { action: 'loadCurrentUser' });
+    const result = await callApi('fetchCurrentUser');
+    if (!result?.currentUser) {
+      try {
+        const response = await fetch('/api/profile/get-current', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+
+        const data = await response.json() as {
+          profile?: {
+            id: string;
+            phoneNumber?: string;
+            firstName?: string;
+            lastName?: string;
+            username?: string;
+            bio?: string;
+            avatarUrl?: string;
+            isVerified?: boolean;
+            isPremium?: boolean;
+            gifts?: unknown[];
+          };
+        };
+
+        if (!data.profile?.id) return;
+
+        const fallbackUser: ApiUser = {
+          id: data.profile.id,
+          isMin: false,
+          isSelf: true,
+          type: 'userTypeRegular',
+          phoneNumber: data.profile.phoneNumber || '',
+          firstName: data.profile.firstName,
+          lastName: data.profile.lastName,
+          usernames: data.profile.username ? [{ username: data.profile.username, isActive: true }] : undefined,
+          hasUsername: Boolean(data.profile.username),
+          isVerified: data.profile.isVerified ? true : undefined,
+          isPremium: Boolean(data.profile.isPremium),
+        };
+
+        let global = getGlobal();
+        global = updateUser(global, fallbackUser.id, fallbackUser);
+        global = updateUserFullInfo(global, fallbackUser.id, {
+          bio: data.profile.bio,
+          starGiftCount: data.profile.gifts?.length,
+        });
+        global = {
+          ...global,
+          currentUserId: fallbackUser.id,
+        };
+        setGlobal(global);
+
+        // eslint-disable-next-line no-console
+        console.info('[profile] local profile loaded from DB fallback', { profileId: fallbackUser.id });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[profile] DB fallback for current profile failed', err);
+      }
+      return;
+    }
+
+    let global = getGlobal();
+    // eslint-disable-next-line no-console
+    console.info('[store] profile state before', {
+      currentUserId: global.currentUserId,
+      hasCurrentUser: Boolean(global.currentUserId && selectUser(global, global.currentUserId)),
+    });
+    global = updateUser(global, result.currentUser.id, result.currentUser);
+    global = updateUserFullInfo(global, result.currentUser.id, result.currentUserFullInfo);
+    global = {
+      ...global,
+      currentUserId: result.currentUser.id,
+    };
+    setGlobal(global);
+    // eslint-disable-next-line no-console
+    console.info('[profile] backend current user/profile loaded', { currentUserId: result.currentUser.id });
+    // eslint-disable-next-line no-console
+    console.info('[profile] adapted user created', { currentUserId: result.currentUser.id });
+    // eslint-disable-next-line no-console
+    console.info('[store] profile state after', {
+      currentUserId: global.currentUserId,
+      hasCurrentUser: Boolean(global.currentUserId && selectUser(global, global.currentUserId)),
+    });
+  })();
 });
 
 addActionHandler('loadCommonChats', async (global, actions, payload): Promise<void> => {

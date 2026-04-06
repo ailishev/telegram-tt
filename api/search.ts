@@ -1,5 +1,5 @@
-import { prisma } from './_lib/prisma.js';
-import { hashSessionToken, readSessionToken } from './_lib/http.js';
+import { prisma } from '../server/prisma.js';
+import { hashSessionToken, readSessionToken } from '../server/http.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {

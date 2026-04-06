@@ -26,6 +26,7 @@ import { selectTabState, selectTheme, selectUser } from '../../../global/selecto
 import { selectPremiumLimit } from '../../../global/selectors/limits';
 import { selectSharedSettings } from '../../../global/selectors/sharedState';
 import { IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { getPromptInstall } from '../../../util/installPrompt';
 import { switchPermanentWebVersion } from '../../../util/permanentWebVersion';
 import { getSystemTheme } from '../../../util/systemTheme';
@@ -40,7 +41,6 @@ import MenuSeparator from '../../ui/MenuSeparator';
 import NestedMenuItem from '../../ui/NestedMenuItem';
 import Switcher from '../../ui/Switcher';
 import Toggle from '../../ui/Toggle';
-import { SettingsScreens } from '../settings/types';
 import AccountMenuItems from './AccountMenuItems';
 
 type OwnProps = {
@@ -79,11 +79,15 @@ const LeftSideMenuItems = ({
 }: OwnProps & StateProps) => {
   const {
     openChat,
+    openChatWithInfo,
     setSharedSettingOption,
     updatePerformanceSettings,
+    loadFullUser,
+    loadPeerSavedGifts,
     openChatByUsername,
     openUrl,
     openSettingsScreen,
+    loadCurrentUser,
   } = getActions();
   const lang = useLang();
 
@@ -97,7 +101,21 @@ const LeftSideMenuItems = ({
   const bots = useMemo(() => Object.values(attachBots).filter((bot) => bot.isForSideMenu), [attachBots]);
 
   const handleSelectMyProfile = useLastCallback(() => {
-    openSettingsScreen({ screen: SettingsScreens.EditProfile });
+    // eslint-disable-next-line no-console
+    console.info('[profile] my profile clicked', { currentUserId });
+    // eslint-disable-next-line no-console
+    console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
+    loadCurrentUser();
+    if (!currentUserId) return;
+    if (!isNumericPeerId(currentUserId)) {
+      // eslint-disable-next-line no-console
+      console.info('[profile] opening local profile via settings fallback', { currentUserId });
+      openSettingsScreen({ screen: SettingsScreens.Main });
+      return;
+    }
+    loadFullUser({ userId: currentUserId, withPhotos: true });
+    loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
+    openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
   });
 
   const handleSelectSaved = useLastCallback(() => {
