@@ -18,7 +18,9 @@ export default async function handler(req: any, res: any) {
 
   const session = await prisma.session.findUnique({
     where: { tokenHash },
-    include: { profile: true },
+    include: {
+      profile: true,
+    },
   });
 
   if (!session || session.expiresAt <= now) {
@@ -30,6 +32,16 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const [linkedTelegram, localStarsBalance] = await Promise.all([
+    prisma.linkedTelegramAccount.findUnique({ where: { profileId: session.profileId } }),
+    prisma.localStarsBalance.findUnique({ where: { profileId: session.profileId } }),
+  ]);
+
+  console.info('[local-auth] local session restore', {
+    profileId: session.profile.id,
+    linkedTelegram: Boolean(linkedTelegram),
+  });
+
   res.status(200).json({
     authenticated: true,
     profile: {
@@ -38,6 +50,15 @@ export default async function handler(req: any, res: any) {
       firstName: session.profile.firstName,
       lastName: session.profile.lastName,
       username: session.profile.username,
+    },
+    telegramLink: linkedTelegram ? {
+      linked: true,
+      telegramUserId: linkedTelegram.telegramUserId,
+      telegramPhone: linkedTelegram.telegramPhone,
+      telegramUsername: linkedTelegram.telegramUsername,
+    } : { linked: false },
+    localStars: {
+      balance: localStarsBalance?.balance ?? 0,
     },
     needsOnboarding: !session.profile.firstName,
   });

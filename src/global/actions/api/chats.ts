@@ -3269,7 +3269,26 @@ async function loadChats(
   const isFirstBatch = !shouldIgnorePagination && !offsetPeer && !offsetDate && !offsetId;
   const shouldReplaceStaleState = listType === 'active' && isFirstBatch;
   const isAccountFreeze = selectIsCurrentUserFrozen(global);
-  const currentUser = selectUser(global, global.currentUserId!)!;
+  const currentUserId = global.currentUserId;
+  const currentUser = currentUserId ? selectUser(global, currentUserId) : undefined;
+
+  if (!currentUserId || !currentUser) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] skipped because Telegram not linked', { listType, currentUserId });
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    setGlobal(global);
+    return;
+  }
 
   const result = listType === 'saved' ? await callApi('fetchSavedChats', {
     parentPeer: currentUser,

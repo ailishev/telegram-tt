@@ -196,7 +196,12 @@ function onUpdateAuthorizationState<T extends GlobalState>(
 
       const currentUserId = getGlobal().currentUserId;
       if (currentUserId) {
+        // eslint-disable-next-line no-console
+        console.info('[telegram-link] linked account found', { currentUserId });
         openOwnProfileScreen(actions, currentUserId);
+      } else {
+        // eslint-disable-next-line no-console
+        console.info('[telegram-link] linked account not found');
       }
 
       break;
@@ -363,7 +368,7 @@ function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: str
   }
 
   actions.loadFullUser({ userId: currentUserId, withPhotos: true });
-  actions.loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
+  actions.loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true, tabId });
   actions.loadMyUniqueGifts({ shouldRefresh: true });
   actions.openChatWithInfo({
     id: currentUserId,
