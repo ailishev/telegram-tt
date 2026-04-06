@@ -1,6 +1,32 @@
 import { prisma } from '../../server/prisma.js';
 import { clearSessionCookie, hashSessionToken, readSessionToken } from '../../server/http.js';
 
+function isMissingTableError(error: any) {
+  return error?.code === 'P2021';
+}
+
+async function getLinkedTelegramSafe(profileId: string) {
+  try {
+    return await prisma.linkedTelegramAccount.findUnique({ where: { profileId } });
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function getLocalStarsBalanceSafe(profileId: string) {
+  try {
+    return await prisma.localStarsBalance.findUnique({ where: { profileId } });
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -33,8 +59,8 @@ export default async function handler(req: any, res: any) {
   }
 
   const [linkedTelegram, localStarsBalance] = await Promise.all([
-    prisma.linkedTelegramAccount.findUnique({ where: { profileId: session.profileId } }),
-    prisma.localStarsBalance.findUnique({ where: { profileId: session.profileId } }),
+    getLinkedTelegramSafe(session.profileId),
+    getLocalStarsBalanceSafe(session.profileId),
   ]);
 
   console.info('[local-auth] local session restore', {
