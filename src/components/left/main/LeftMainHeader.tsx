@@ -9,6 +9,7 @@ import type { ThemeKey } from '../../../types';
 import { LeftColumnContent, SettingsScreens } from '../../../types';
 
 import {
+  selectAreActiveChatsLoaded,
   selectCanSetPasscode,
   selectCurrentMessageList,
   selectIsCurrentUserPremium,
@@ -341,7 +342,7 @@ export default memo(withGlobal<OwnProps>(
       isMessageListOpen: Boolean(selectCurrentMessageList(global)),
       isConnectionStatusMinimized,
       isCurrentUserPremium: selectIsCurrentUserPremium(global),
-      areChatsLoaded: Boolean(global.chats.listIds.active),
+      areChatsLoaded: selectAreActiveChatsLoaded(global),
       hasPasscode: Boolean(global.passcode.hasPasscode),
       canSetPasscode: selectCanSetPasscode(global),
       isForumPanelOpen,

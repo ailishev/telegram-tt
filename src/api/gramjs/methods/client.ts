@@ -448,6 +448,11 @@ export async function fetchCurrentUser() {
 
   currentUserId = currentUser.id;
   setIsPremium({ isPremium: Boolean(currentUser.isPremium) });
+
+  return {
+    currentUser,
+    currentUserFullInfo,
+  };
 }
 
 export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {
