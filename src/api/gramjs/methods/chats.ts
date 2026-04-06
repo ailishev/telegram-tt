@@ -1185,10 +1185,16 @@ export function toggleChatArchived({
 }
 
 export async function fetchChatFolders() {
-  const result = await invokeRequest(new GramJs.messages.GetDialogFilters());
+  const result = await invokeRequest(new GramJs.messages.GetDialogFilters(), {
+    shouldIgnoreErrors: true,
+  });
 
   if (!result) {
-    return undefined;
+    return {
+      byId: {},
+      orderedIds: [ALL_FOLDER_ID],
+      areTagsEnabled: false,
+    };
   }
   const { filters, tagsEnabled: areTagsEnabled } = result;
 

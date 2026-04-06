@@ -481,6 +481,10 @@ export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, req
     console.info('[telegram] AUTH_KEY_UNREGISTERED detected, clearing stale telegram session');
     clearStoredSession();
     sendApiUpdate({
+      '@type': 'updateAuthorizationState',
+      authorizationState: 'authorizationStateWaitPhoneNumber',
+    });
+    sendApiUpdate({
       '@type': 'updateConnectionState',
       connectionState: 'connectionStateBroken',
     });
