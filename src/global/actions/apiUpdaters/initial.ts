@@ -8,7 +8,7 @@ import type {
   ApiUpdateSession,
   ApiUpdateUserAlreadyAuthorized,
 } from '../../../api/types';
-import type { LangCode } from '../../../types';
+import { SettingsScreens, type LangCode } from '../../../types';
 import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
 
@@ -358,6 +358,13 @@ function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: str
   const global = getGlobal();
   const currentMessageList = selectCurrentMessageList(global, tabId);
   const tabState = selectTabState(global, tabId);
+
+  if (!/^-?\d+$/.test(currentUserId)) {
+    // eslint-disable-next-line no-console
+    console.info('[profile] telegram profile flow skipped for non-telegram id', { currentUserId });
+    actions.openSettingsScreen({ screen: SettingsScreens.Main, tabId });
+    return;
+  }
 
   const isCurrentUserProfileAlreadyOpen = currentMessageList?.chatId === currentUserId
     && tabState.chatInfo.isOpen

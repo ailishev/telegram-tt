@@ -4,7 +4,7 @@ import { getActions, withGlobal } from '../../../global';
 
 import type { ApiUser } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
-import type { AnimationLevel, ThemeKey } from '../../../types';
+import { SettingsScreens, type AnimationLevel, type ThemeKey } from '../../../types';
 
 import {
   ANIMATION_LEVEL_MAX,
@@ -106,6 +106,12 @@ const LeftSideMenuItems = ({
     console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
     loadCurrentUser();
     if (!currentUserId) return;
+    if (!/^-?\d+$/.test(currentUserId)) {
+      // eslint-disable-next-line no-console
+      console.info('[profile] opening local profile via settings fallback', { currentUserId });
+      openSettingsScreen({ screen: SettingsScreens.Main });
+      return;
+    }
     loadFullUser({ userId: currentUserId, withPhotos: true });
     loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
     openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
