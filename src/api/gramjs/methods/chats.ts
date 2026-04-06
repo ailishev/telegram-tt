@@ -144,11 +144,15 @@ export async function fetchChats({
     offsetDate: offsetDate ?? DEFAULT_PRIMITIVES.INT,
     folderId: archived ? ARCHIVED_FOLDER_ID : undefined,
     ...(withPinned && { excludePinned: true }),
-  }));
+  }), {
+    shouldIgnoreErrors: true,
+  });
   const resultPinned = withPinned
     ? await invokeRequest(new GramJs.messages.GetPinnedDialogs({
       folderId: archived ? ARCHIVED_FOLDER_ID : ALL_FOLDER_ID,
-    }))
+    }), {
+      shouldIgnoreErrors: true,
+    })
     : undefined;
 
   if (!result || result instanceof GramJs.messages.DialogsNotModified) {
@@ -1221,7 +1225,9 @@ export async function fetchPinnedDialogs({
 }) {
   const result = await invokeRequest(new GramJs.messages.GetPinnedDialogs({
     folderId: listType === 'archived' ? ARCHIVED_FOLDER_ID : ALL_FOLDER_ID,
-  }));
+  }), {
+    shouldIgnoreErrors: true,
+  });
 
   if (!result) {
     return undefined;
