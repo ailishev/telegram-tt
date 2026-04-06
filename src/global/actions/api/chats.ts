@@ -3305,8 +3305,10 @@ async function loadChats(
     return;
   }
 
+  const linkedCurrentUser = currentUser!;
+
   const result = listType === 'saved' ? await callApi('fetchSavedChats', {
-    parentPeer: currentUser,
+    parentPeer: linkedCurrentUser,
     limit: CHAT_LIST_LOAD_SLICE,
     offsetDate,
     offsetId,
