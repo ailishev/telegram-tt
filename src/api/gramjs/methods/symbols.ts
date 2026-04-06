@@ -186,9 +186,7 @@ export async function fetchStickers(
   const result = await invokeRequest(new GramJs.messages.GetStickerSet({
     stickerset: inputStickerSet,
     hash: DEFAULT_PRIMITIVES.INT,
-  }), {
-    shouldThrow: true,
-  });
+  }));
 
   if (!(result instanceof GramJs.messages.StickerSet)) {
     return undefined;

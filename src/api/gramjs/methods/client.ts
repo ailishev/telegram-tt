@@ -329,6 +329,11 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
       dispatchNotSupportedInFrozenAccountUpdate(err, request);
     }
 
+    if (isTerminatedSessionMessage(message)) {
+      dispatchErrorUpdate(err, request);
+      return undefined;
+    }
+
     if (shouldThrow) {
       throw err;
     }
@@ -457,9 +462,7 @@ export async function fetchCurrentUser() {
 
 export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {
   const message = err instanceof RPCError ? err.errorMessage : err.message;
-  const isTerminatedSessionError = message === 'AUTH_KEY_UNREGISTERED'
-    || message === 'SESSION_REVOKED'
-    || message === 'USER_DEACTIVATED';
+  const isTerminatedSessionError = isTerminatedSessionMessage(message);
 
   if (isTerminatedSessionError) {
     sendApiUpdate({
@@ -483,6 +486,12 @@ export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, req
       hasErrorKey: true,
     },
   });
+}
+
+function isTerminatedSessionMessage(message: string) {
+  return message === 'AUTH_KEY_UNREGISTERED'
+    || message === 'SESSION_REVOKED'
+    || message === 'USER_DEACTIVATED';
 }
 
 function dispatchNotSupportedInFrozenAccountUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {
