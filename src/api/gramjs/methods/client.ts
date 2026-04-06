@@ -477,6 +477,8 @@ export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, req
   const isTerminatedSessionError = isTerminatedSessionMessage(message);
 
   if (isTerminatedSessionError) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] AUTH_KEY_UNREGISTERED detected, clearing stale telegram session');
     clearStoredSession();
     sendApiUpdate({
       '@type': 'updateConnectionState',

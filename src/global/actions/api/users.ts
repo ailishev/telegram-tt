@@ -165,6 +165,8 @@ addActionHandler('loadCurrentUser', (): ActionReturnType => {
     // eslint-disable-next-line no-console
     console.info('[profile] action dispatched', { action: 'loadCurrentUser' });
     const result = await callApi('fetchCurrentUser');
+    // eslint-disable-next-line no-console
+    console.info('[auth] local session restored =', Boolean(result?.currentUser));
     if (!result?.currentUser) {
       try {
         const response = await fetch('/api/profile/get-current', {

@@ -518,6 +518,44 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
   // eslint-disable-next-line no-console
   console.info('[dialogs] loadAllChats started', { listType });
 
+  const localSessionRestored = Boolean(global.currentUserId);
+  const linkedTelegramSession = Boolean(global.currentUserId && isNumericPeerId(global.currentUserId));
+  const hasTelegramAuthKey = Boolean(Object.values(loadStoredSession()?.keys || {}).length);
+  const isTelegramSessionValid = linkedTelegramSession
+    && hasTelegramAuthKey
+    && global.auth.state === 'authorizationStateReady';
+  // eslint-disable-next-line no-console
+  console.info('[auth] local session restored =', localSessionRestored);
+  // eslint-disable-next-line no-console
+  console.info('[telegram] linked session found =', linkedTelegramSession);
+  // eslint-disable-next-line no-console
+  console.info('[telegram] session valid =', isTelegramSessionValid);
+
+  if (!isTelegramSessionValid) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] skipping dialogs bootstrap because telegram not linked');
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    setGlobal(global);
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loading=false', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loaded=true', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state shown', { listType });
+    await whenFirstBatchDone?.();
+    return;
+  }
+
   while (!global.chats.isFullyLoaded[listType]) {
     if (i++ >= INFINITE_LOOP_MARKER) {
       if (DEBUG) {
@@ -1186,6 +1224,23 @@ addActionHandler('toggleSavedDialogPinned', (global, actions, payload): ActionRe
 });
 
 addActionHandler('loadChatFolders', async (global): Promise<void> => {
+  const currentUserId = global.currentUserId;
+  const linkedTelegramSession = Boolean(currentUserId && isNumericPeerId(currentUserId));
+  const hasTelegramAuthKey = Boolean(Object.values(loadStoredSession()?.keys || {}).length);
+  const isTelegramSessionValid = linkedTelegramSession
+    && hasTelegramAuthKey
+    && global.auth.state === 'authorizationStateReady';
+  // eslint-disable-next-line no-console
+  console.info('[telegram] linked session found =', linkedTelegramSession);
+  // eslint-disable-next-line no-console
+  console.info('[telegram] session valid =', isTelegramSessionValid);
+
+  if (!isTelegramSessionValid) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] skipping dialogs bootstrap because telegram not linked');
+    return;
+  }
+
   const chatFolders = await callApi('fetchChatFolders');
 
   if (chatFolders) {
@@ -3301,6 +3356,12 @@ async function loadChats(
     };
     // eslint-disable-next-line no-console
     console.info('[dialogs] loading resolved', { listType, reason: 'telegram-link-required' });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loading=false', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loaded=true', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state shown', { listType });
     setGlobal(global);
     return;
   }
