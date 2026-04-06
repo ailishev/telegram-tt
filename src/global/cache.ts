@@ -24,6 +24,7 @@ import {
   SHARED_STATE_CACHE_KEY,
 } from '../config';
 import { MAIN_IDB_STORE } from '../util/browser/idb';
+import { safeStorage } from '../util/browser/safeStorage';
 import { isUserId } from '../util/entities/ids';
 import { getOrderedIds } from '../util/folderManager';
 import {
@@ -85,7 +86,7 @@ export function removeSharedStateFromCache() {
 }
 
 function cacheIsScreenLocked(global: GlobalState) {
-  if (global?.passcode?.isScreenLocked) localStorage.setItem(IS_SCREEN_LOCKED_CACHE_KEY, 'true');
+  if (global?.passcode?.isScreenLocked) safeStorage.setItem(IS_SCREEN_LOCKED_CACHE_KEY, 'true');
 }
 
 export function initCache() {
@@ -96,7 +97,7 @@ export function initCache() {
   const resetCache = () => {
     isRemovingCache = true;
     removeGlobalFromCache().finally(() => {
-      localStorage.removeItem(IS_SCREEN_LOCKED_CACHE_KEY);
+      safeStorage.removeItem(IS_SCREEN_LOCKED_CACHE_KEY);
       isRemovingCache = false;
       if (!isCaching) {
         return;
@@ -158,9 +159,9 @@ async function readCache(initialState: GlobalState): Promise<GlobalState> {
     console.time('global-state-cache-read');
   }
 
-  const json = localStorage.getItem(GLOBAL_STATE_CACHE_KEY);
+  const json = safeStorage.getItem(GLOBAL_STATE_CACHE_KEY);
   const cachedFromLocalStorage = json ? JSON.parse(json) as GlobalState : undefined;
-  if (cachedFromLocalStorage) localStorage.removeItem(GLOBAL_STATE_CACHE_KEY);
+  if (cachedFromLocalStorage) safeStorage.removeItem(GLOBAL_STATE_CACHE_KEY);
 
   let cached = cachedFromLocalStorage || await loadCachedGlobal();
   const cachedSharedState = await loadCachedSharedState();

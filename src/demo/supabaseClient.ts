@@ -82,13 +82,23 @@ async function callBackendPost<T>(path: string, body: Record<string, unknown>): 
 
 export const isSupabaseConfigured = () => true;
 
-function toNumericId(input: string, fallback: number) {
-  const numeric = Number(input.replace(/[^\d]/g, '').slice(0, 12));
-  if (Number.isFinite(numeric) && numeric > 0) {
-    return String(numeric);
+export function mapProfileIdToPeerId(profileId: string, fallback = 1) {
+  const digitsOnly = profileId.replace(/[^\d]/g, '').slice(0, 11);
+  if (digitsOnly) {
+    return `9${digitsOnly}`;
   }
 
-  return String(fallback);
+  let hash = 0;
+  for (let i = 0; i < profileId.length; i++) {
+    hash = ((hash << 5) - hash) + profileId.charCodeAt(i);
+    hash |= 0;
+  }
+  const positive = Math.abs(hash) + 1000 + fallback;
+  return `9${String(positive)}`;
+}
+
+function toNumericId(input: string, fallback: number) {
+  return mapProfileIdToPeerId(input, fallback);
 }
 
 export async function buildMockDataFromSupabase(): Promise<MockTypes> {
@@ -104,12 +114,15 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   // eslint-disable-next-line no-console
   console.info('[dialogs][adapter] backend payload', { dialogsCount: dialogs.length, hasProfile: Boolean(profile) });
 
-  const currentUserId = '1';
+  const currentUserId = profile?.id
+    ? mapProfileIdToPeerId(profile.id)
+    : (session?.userId ? mapProfileIdToPeerId(session.userId) : mapProfileIdToPeerId('local-self'));
 
   const usersById: Record<string, any> = {
     [currentUserId]: {
       id: currentUserId,
       self: true as const,
+      backendProfileId: profile?.id || session?.userId,
       firstName: profile?.firstName || 'User',
       lastName: profile?.lastName || '',
       username: profile?.username,
@@ -125,6 +138,9 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   const dialogIds: string[] = [];
   const messagesByDialog: Record<string, MockMessage[]> = {};
   const backendDialogByPeerId: Record<string, string> = {};
+  const backendProfileByPeerId: Record<string, string> = {
+    [currentUserId]: profile?.id || session?.userId || '',
+  };
 
   dialogs.forEach((dialog, index) => {
     const peerId = toNumericId(dialog.peer?.id || dialog.id, index + 2);
@@ -132,8 +148,10 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
     backendDialogByPeerId[peerId] = dialog.id;
 
     if (dialog.peer?.id && !usersById[peerId]) {
+      backendProfileByPeerId[peerId] = dialog.peer.id;
       usersById[peerId] = {
         id: peerId,
+        backendProfileId: dialog.peer.id,
         firstName: dialog.peer.firstName || dialog.title || 'User',
         lastName: dialog.peer.lastName || '',
         username: dialog.peer.username,
@@ -176,6 +194,9 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
     dialogFilters: [],
     topPeers: dialogIds,
     backendDialogByPeerId,
+    backendProfileByPeerId,
+    currentUserPeerId: currentUserId,
+    currentUserProfileId: profile?.id || session?.userId,
   } as MockTypes;
 }
 

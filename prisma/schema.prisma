@@ -4,8 +4,7 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-   
-    url       = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+  url       = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
   directUrl = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 }
 
@@ -36,7 +35,50 @@ model Profile {
   sentMessages   Message[]      @relation("MessageSender")
   sessions       Session[]
   gifts          ProfileGift[]
+  linkedTelegramAccount LinkedTelegramAccount?
+  localStarsBalance LocalStarsBalance?
+  localStarsTransactions LocalStarsTransaction[]
 
+}
+
+model LinkedTelegramAccount {
+  id                    String   @id @default(cuid())
+  profileId             String   @unique
+  telegramUserId        String
+  telegramPhone         String?
+  telegramUsername      String?
+  telegramSessionCipher String?
+  linkedAt              DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([telegramUserId])
+}
+
+model LocalStarsBalance {
+  id        String   @id @default(cuid())
+  profileId String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model LocalStarsTransaction {
+  id            String   @id @default(cuid())
+  profileId     String
+  amount        Int
+  type          String
+  referenceType String?
+  referenceId   String?
+  metadataJson  Json?
+  createdAt     DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
 }
 
 model ProfileGift {

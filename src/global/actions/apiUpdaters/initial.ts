@@ -8,11 +8,12 @@ import type {
   ApiUpdateSession,
   ApiUpdateUserAlreadyAuthorized,
 } from '../../../api/types';
-import type { LangCode } from '../../../types';
+import { type LangCode } from '../../../types';
 import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
 
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { getShippingError, shouldClosePaymentModal } from '../../../util/getReadableErrorText';
 import { unique } from '../../../util/iteratees';
 import { getAccountsInfo, getAccountSlotUrl } from '../../../util/multiaccount';
@@ -28,7 +29,7 @@ import {
 import { updateUser, updateUserFullInfo } from '../../reducers';
 import { updateAuth } from '../../reducers/auth';
 import { updateTabState } from '../../reducers/tabs';
-import { selectTabState } from '../../selectors';
+import { selectCurrentMessageList, selectTabState } from '../../selectors';
 import { selectSharedSettings } from '../../selectors/sharedState';
 
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
@@ -38,7 +39,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       break;
 
     case 'updateAuthorizationState':
-      onUpdateAuthorizationState(global, update);
+      onUpdateAuthorizationState(global, actions, update);
       break;
 
     case 'updateAuthorizationError':
@@ -70,7 +71,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       break;
 
     case 'updateCurrentUser':
-      onUpdateCurrentUser(global, update);
+      onUpdateCurrentUser(global, actions, update);
       break;
 
     case 'requestReconnectApi':
@@ -127,7 +128,11 @@ function onUpdateApiReady<T extends GlobalState>(global: T) {
   void oldSetLanguage(selectSharedSettings(global).language as LangCode);
 }
 
-function onUpdateAuthorizationState<T extends GlobalState>(global: T, update: ApiUpdateAuthorizationState) {
+function onUpdateAuthorizationState<T extends GlobalState>(
+  global: T,
+  actions: RequiredGlobalActions,
+  update: ApiUpdateAuthorizationState,
+) {
   const wasAuthReady = global.auth.state === 'authorizationStateReady';
   const authState = update.authorizationState;
 
@@ -189,6 +194,16 @@ function onUpdateAuthorizationState<T extends GlobalState>(global: T, update: Ap
         }, tabId);
       });
       setGlobal(global);
+
+      const currentUserId = getGlobal().currentUserId;
+      if (currentUserId) {
+        // eslint-disable-next-line no-console
+        console.info('[telegram-link] linked account found', { currentUserId });
+        openOwnProfileScreen(actions, currentUserId);
+      } else {
+        // eslint-disable-next-line no-console
+        console.info('[telegram-link] linked account not found');
+      }
 
       break;
     }
@@ -275,7 +290,8 @@ function onUpdateConnectionState<T extends GlobalState>(
   }
 
   if (connectionState === 'connectionStateBroken') {
-    actions.signOut({ forceInitApi: true });
+    const shouldForceInitApi = !global.currentUserId || isNumericPeerId(global.currentUserId);
+    actions.signOut({ forceInitApi: shouldForceInitApi });
   }
 }
 
@@ -307,8 +323,17 @@ function onUpdateServerTimeOffset(update: ApiUpdateServerTimeOffset) {
   setServerTimeOffset(update.serverTimeOffset);
 }
 
-function onUpdateCurrentUser<T extends GlobalState>(global: T, update: ApiUpdateCurrentUser) {
+function onUpdateCurrentUser<T extends GlobalState>(
+  global: T,
+  actions: RequiredGlobalActions,
+  update: ApiUpdateCurrentUser,
+) {
   const { currentUser, currentUserFullInfo } = update;
+  // eslint-disable-next-line no-console
+  console.info('[store] profile state before', {
+    currentUserId: global.currentUserId,
+    hasCurrentUser: Boolean(global.currentUserId && global.users.byId[global.currentUserId]),
+  });
 
   global = {
     ...updateUser(global, currentUser.id, currentUser),
@@ -316,6 +341,47 @@ function onUpdateCurrentUser<T extends GlobalState>(global: T, update: ApiUpdate
   };
   global = updateUserFullInfo(global, currentUser.id, currentUserFullInfo);
   setGlobal(global);
+  // eslint-disable-next-line no-console
+  console.info('[profile] backend current user/profile loaded', { currentUserId: currentUser.id });
+  // eslint-disable-next-line no-console
+  console.info('[profile] adapted user created', { currentUserId: currentUser.id });
+  // eslint-disable-next-line no-console
+  console.info('[store] profile state after', {
+    currentUserId: global.currentUserId,
+    hasCurrentUser: Boolean(global.currentUserId && global.users.byId[global.currentUserId]),
+  });
 
   updateSessionUserId(currentUser.id);
+  openOwnProfileScreen(actions, currentUser.id);
+}
+
+function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: string) {
+  const tabId = getCurrentTabId();
+  const global = getGlobal();
+  const currentMessageList = selectCurrentMessageList(global, tabId);
+  const tabState = selectTabState(global, tabId);
+
+  if (!isNumericPeerId(currentUserId)) {
+    // eslint-disable-next-line no-console
+    console.info('[profile] profile view skipped until self peer is adapted', { currentUserId });
+    return;
+  }
+
+  const isCurrentUserProfileAlreadyOpen = currentMessageList?.chatId === currentUserId
+    && tabState.chatInfo.isOpen
+    && tabState.chatInfo.isOwnProfile;
+
+  if (isCurrentUserProfileAlreadyOpen) {
+    return;
+  }
+
+  actions.loadFullUser({ userId: currentUserId, withPhotos: true });
+  actions.loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true, tabId });
+  actions.loadMyUniqueGifts({ shouldRefresh: true });
+  actions.openChatWithInfo({
+    id: currentUserId,
+    isOwnProfile: true,
+    shouldReplaceHistory: true,
+    tabId,
+  });
 }

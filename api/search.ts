@@ -1,7 +1,8 @@
-import { prisma } from './_lib/prisma.js';
-import { hashSessionToken, readSessionToken } from './_lib/http.js';
+import { prisma } from '../server/prisma.js';
+import { hashSessionToken, readSessionToken } from '../server/http.js';
 
 export default async function handler(req: any, res: any) {
+  console.info('[search][api] request', { method: req.method, q: req.query?.q });
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -49,5 +50,6 @@ export default async function handler(req: any, res: any) {
     .map((membership) => membership.dialog)
     .filter((dialog) => dialog.title?.toLowerCase().includes(q.toLowerCase()));
 
+  console.info('[search][api] response', { usersCount: users.length, dialogsCount: dialogs.length });
   res.status(200).json({ users, dialogs });
 }

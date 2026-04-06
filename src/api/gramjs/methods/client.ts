@@ -21,6 +21,7 @@ import {
   DEBUG, DEBUG_GRAMJS, IS_TEST, LANG_PACK, UPLOAD_WORKERS,
 } from '../../../config';
 import { pause } from '../../../util/schedulers';
+import { clearStoredSession } from '../../../util/sessions';
 import { buildWebPage } from '../apiBuilders/messageContent';
 import {
   buildApiMessage,
@@ -134,6 +135,11 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     }
 
     try {
+      const hasAuthKey = Boolean(Object.values(sessionData?.keys || {}).length);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] auth key present =', hasAuthKey);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] session restore start');
       client.setPingCallback(getDifference);
       await client.start({
         phoneNumber: onRequestPhoneNumber,
@@ -144,16 +150,22 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
         qrCode: onRequestQrCode,
         onError: onAuthError,
         initialMethod: platform === 'iOS' || platform === 'Android' ? 'phoneNumber' : 'qrCode',
-        shouldThrowIfUnauthorized: Object.values(sessionData?.keys || {}).length > 0,
+        // Prevent hard-failing startup on stale auth keys (AUTH_KEY_UNREGISTERED).
+        // We handle terminated sessions via regular auth/connection update flow.
+        shouldThrowIfUnauthorized: false,
         webAuthToken,
         webAuthTokenFailed: onWebAuthTokenFailed,
         mockScenario,
         accountIds,
         hasPasskeySupport,
       }, onConnected);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] session restore success');
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error(err);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] session restore fail', err?.message || err);
 
       if (err.message !== 'Disconnect' && err.message !== 'Cannot send requests while disconnected') {
         sendApiUpdate({
@@ -329,6 +341,11 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
       dispatchNotSupportedInFrozenAccountUpdate(err, request);
     }
 
+    if (isTerminatedSessionMessage(message)) {
+      dispatchErrorUpdate(err, request);
+      return undefined;
+    }
+
     if (shouldThrow) {
       throw err;
     }
@@ -448,10 +465,32 @@ export async function fetchCurrentUser() {
 
   currentUserId = currentUser.id;
   setIsPremium({ isPremium: Boolean(currentUser.isPremium) });
+
+  return {
+    currentUser,
+    currentUserFullInfo,
+  };
 }
 
 export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {
   const message = err instanceof RPCError ? err.errorMessage : err.message;
+  const isTerminatedSessionError = isTerminatedSessionMessage(message);
+
+  if (isTerminatedSessionError) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] AUTH_KEY_UNREGISTERED detected, clearing stale telegram session');
+    clearStoredSession();
+    sendApiUpdate({
+      '@type': 'updateAuthorizationState',
+      authorizationState: 'authorizationStateWaitPhoneNumber',
+    });
+    sendApiUpdate({
+      '@type': 'updateConnectionState',
+      connectionState: 'connectionStateBroken',
+    });
+    return;
+  }
+
   const isSlowMode = message === 'FLOOD' && (
     request instanceof GramJs.messages.SendMessage
     || request instanceof GramJs.messages.SendMedia
@@ -466,6 +505,12 @@ export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, req
       hasErrorKey: true,
     },
   });
+}
+
+function isTerminatedSessionMessage(message: string) {
+  return message === 'AUTH_KEY_UNREGISTERED'
+    || message === 'SESSION_REVOKED'
+    || message === 'USER_DEACTIVATED';
 }
 
 function dispatchNotSupportedInFrozenAccountUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {

@@ -22,6 +22,7 @@ import { deepMerge } from '../deepMerge';
 import { getCurrentTabId, signalPasscodeHash, subscribeToTokenDied } from '../establishMultitabRole';
 import { omit } from '../iteratees';
 import { DATA_BROADCAST_CHANNEL_NAME, MULTITAB_STORAGE_KEY } from '../multiaccount';
+import { safeStorage } from './safeStorage';
 
 type BroadcastChannelRefreshLangpack = {
   type: 'langpackRefresh';
@@ -378,7 +379,7 @@ export function requestGlobal(appVersion: string): Promise<void> {
     isFirstGlobalResolved = true;
   };
 
-  if (localStorage.getItem(MULTITAB_STORAGE_KEY)) {
+  if (safeStorage.getItem(MULTITAB_STORAGE_KEY)) {
     setTimeout(resolveWithoutGlobal, MULTITAB_ESTABLISH_TIMEOUT);
   } else {
     resolveWithoutGlobal();

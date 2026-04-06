@@ -1302,9 +1302,11 @@ export default memo(withGlobal<OwnProps>(
     const storyByIds = peerStories?.byId;
     const archiveStoryIds = peerStories?.archiveIds;
 
-    const hasGiftsTab = Boolean(peerFullInfo?.starGiftCount) && !isSavedMessages;
+    const hasGiftsTab = (Boolean(peerFullInfo?.starGiftCount) || Boolean(chatFullInfo?.areStarGiftsAvailable))
+      && !isSavedMessages;
     const activeCollectionId = selectActiveGiftsCollectionId(global, chatId);
     const peerGifts = savedGifts.collectionsByPeerId[chatId]?.[activeCollectionId];
+    const hasGiftsFromState = Boolean(peerGifts?.gifts?.length);
 
     const storyAlbums = global.stories.albumsByPeerId?.[chatId];
     const giftCollections = global.starGiftCollections?.byPeerId?.[chatId];
@@ -1337,7 +1339,7 @@ export default memo(withGlobal<OwnProps>(
       userStatusesById,
       chatsById,
       storyIds,
-      hasGiftsTab,
+      hasGiftsTab: hasGiftsTab || hasGiftsFromState,
       gifts: peerGifts?.gifts,
       storyAlbums,
       giftCollections,
