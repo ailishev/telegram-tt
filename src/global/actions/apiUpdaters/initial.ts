@@ -13,6 +13,7 @@ import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
 
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { getShippingError, shouldClosePaymentModal } from '../../../util/getReadableErrorText';
 import { unique } from '../../../util/iteratees';
 import { getAccountsInfo, getAccountSlotUrl } from '../../../util/multiaccount';
@@ -359,7 +360,7 @@ function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: str
   const currentMessageList = selectCurrentMessageList(global, tabId);
   const tabState = selectTabState(global, tabId);
 
-  if (!/^-?\d+$/.test(currentUserId)) {
+  if (!isNumericPeerId(currentUserId)) {
     // eslint-disable-next-line no-console
     console.info('[profile] telegram profile flow skipped for non-telegram id', { currentUserId });
     actions.openSettingsScreen({ screen: SettingsScreens.Main, tabId });

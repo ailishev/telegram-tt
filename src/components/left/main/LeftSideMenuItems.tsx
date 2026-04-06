@@ -26,6 +26,7 @@ import { selectTabState, selectTheme, selectUser } from '../../../global/selecto
 import { selectPremiumLimit } from '../../../global/selectors/limits';
 import { selectSharedSettings } from '../../../global/selectors/sharedState';
 import { IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { getPromptInstall } from '../../../util/installPrompt';
 import { switchPermanentWebVersion } from '../../../util/permanentWebVersion';
 import { getSystemTheme } from '../../../util/systemTheme';
@@ -106,7 +107,7 @@ const LeftSideMenuItems = ({
     console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
     loadCurrentUser();
     if (!currentUserId) return;
-    if (!/^-?\d+$/.test(currentUserId)) {
+    if (!isNumericPeerId(currentUserId)) {
       // eslint-disable-next-line no-console
       console.info('[profile] opening local profile via settings fallback', { currentUserId });
       openSettingsScreen({ screen: SettingsScreens.Main });

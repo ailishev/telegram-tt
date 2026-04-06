@@ -3,7 +3,7 @@ import type { ActionReturnType } from '../../types';
 import { ManagementProgress } from '../../../types';
 
 import { BOT_VERIFICATION_PEERS_LIMIT } from '../../../config';
-import { isUserId } from '../../../util/entities/ids';
+import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey, unique } from '../../../util/iteratees';
 import * as langProvider from '../../../util/oldLangProvider';
@@ -48,6 +48,9 @@ const runThrottledForSearch = throttle((cb) => cb(), 500, false);
 
 addActionHandler('loadFullUser', async (global, actions, payload): Promise<void> => {
   const { userId, withPhotos } = payload;
+  if (!isNumericPeerId(userId)) {
+    return;
+  }
   const user = selectUser(global, userId);
   if (!user) {
     return;

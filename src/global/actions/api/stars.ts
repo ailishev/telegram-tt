@@ -13,6 +13,7 @@ import {
   TON_CURRENCY_CODE,
 } from '../../../config';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { buildCollectionByCallback, buildCollectionByKey } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi } from '../../../api/gramjs';
@@ -337,6 +338,8 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   const {
     peerId, shouldRefresh, tabId = getCurrentTabId(),
   } = payload;
+
+  if (!isNumericPeerId(peerId)) return;
 
   const peer = selectPeer(global, peerId);
   if (!peer) return;
