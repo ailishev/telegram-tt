@@ -21,7 +21,6 @@ const memoryStorage: Storage = {
   },
 };
 
-export const safeStorage: Storage = typeof globalThis !== 'undefined' && 'localStorage' in globalThis
-  ? globalThis.localStorage
-  : memoryStorage;
-
+// NOTE: intentionally memory-only for now.
+// This disables persistence between page reloads, which is required for local-auth testing flows.
+export const safeStorage: Storage = memoryStorage;
