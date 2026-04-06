@@ -144,7 +144,9 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
         qrCode: onRequestQrCode,
         onError: onAuthError,
         initialMethod: platform === 'iOS' || platform === 'Android' ? 'phoneNumber' : 'qrCode',
-        shouldThrowIfUnauthorized: Object.values(sessionData?.keys || {}).length > 0,
+        // Prevent hard-failing startup on stale auth keys (AUTH_KEY_UNREGISTERED).
+        // We handle terminated sessions via regular auth/connection update flow.
+        shouldThrowIfUnauthorized: false,
         webAuthToken,
         webAuthTokenFailed: onWebAuthTokenFailed,
         mockScenario,

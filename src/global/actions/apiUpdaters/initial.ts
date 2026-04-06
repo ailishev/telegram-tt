@@ -290,7 +290,8 @@ function onUpdateConnectionState<T extends GlobalState>(
   }
 
   if (connectionState === 'connectionStateBroken') {
-    actions.signOut({ forceInitApi: true });
+    const shouldForceInitApi = !global.currentUserId || isNumericPeerId(global.currentUserId);
+    actions.signOut({ forceInitApi: shouldForceInitApi });
   }
 }
 
