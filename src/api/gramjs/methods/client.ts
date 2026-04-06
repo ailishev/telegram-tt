@@ -21,6 +21,7 @@ import {
   DEBUG, DEBUG_GRAMJS, IS_TEST, LANG_PACK, UPLOAD_WORKERS,
 } from '../../../config';
 import { pause } from '../../../util/schedulers';
+import { clearStoredSession } from '../../../util/sessions';
 import { buildWebPage } from '../apiBuilders/messageContent';
 import {
   buildApiMessage,
@@ -134,6 +135,11 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     }
 
     try {
+      const hasAuthKey = Boolean(Object.values(sessionData?.keys || {}).length);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] auth key present =', hasAuthKey);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] session restore start');
       client.setPingCallback(getDifference);
       await client.start({
         phoneNumber: onRequestPhoneNumber,
@@ -153,9 +159,13 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
         accountIds,
         hasPasskeySupport,
       }, onConnected);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] session restore success');
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error(err);
+      // eslint-disable-next-line no-console
+      console.info('[telegram] session restore fail', err?.message || err);
 
       if (err.message !== 'Disconnect' && err.message !== 'Cannot send requests while disconnected') {
         sendApiUpdate({
@@ -467,6 +477,7 @@ export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, req
   const isTerminatedSessionError = isTerminatedSessionMessage(message);
 
   if (isTerminatedSessionError) {
+    clearStoredSession();
     sendApiUpdate({
       '@type': 'updateConnectionState',
       connectionState: 'connectionStateBroken',

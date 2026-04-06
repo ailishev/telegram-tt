@@ -36,7 +36,7 @@ import {
 import { copyTextToClipboard } from '../../../util/clipboard';
 import { formatShareText, processDeepLink } from '../../../util/deeplink';
 import { isDeepLink } from '../../../util/deepLinkParser';
-import { isUserId } from '../../../util/entities/ids';
+import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { getOrderedIds } from '../../../util/folderManager';
 import {
@@ -45,6 +45,7 @@ import {
 import { isLocalMessageId } from '../../../util/keys/messageKey';
 import * as langProvider from '../../../util/oldLangProvider';
 import { debounce, pause, throttle } from '../../../util/schedulers';
+import { loadStoredSession } from '../../../util/sessions';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
 import { callApi } from '../../../api/gramjs';
 import {
@@ -3271,10 +3272,22 @@ async function loadChats(
   const isAccountFreeze = selectIsCurrentUserFrozen(global);
   const currentUserId = global.currentUserId;
   const currentUser = currentUserId ? selectUser(global, currentUserId) : undefined;
+  const isTelegramAuthReady = global.auth.state === 'authorizationStateReady';
+  const isTelegramLinked = Boolean(currentUserId && isNumericPeerId(currentUserId) && currentUser);
+  const hasTelegramAuthKey = Boolean(Object.values(loadStoredSession()?.keys || {}).length);
 
-  if (!currentUserId || !currentUser) {
+  // eslint-disable-next-line no-console
+  console.info('[telegram] auth key present =', hasTelegramAuthKey);
+
+  if (!isTelegramAuthReady || !isTelegramLinked || !hasTelegramAuthKey) {
     // eslint-disable-next-line no-console
-    console.info('[dialogs] skipped because Telegram not linked', { listType, currentUserId });
+    console.info('[dialogs] skipped because telegram not linked', {
+      listType,
+      currentUserId,
+      isTelegramAuthReady,
+      isTelegramLinked,
+      hasTelegramAuthKey,
+    });
     global = replaceChatListIds(global, listType, []);
     global = {
       ...global,
@@ -3286,6 +3299,8 @@ async function loadChats(
         },
       },
     };
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loading resolved', { listType, reason: 'telegram-link-required' });
     setGlobal(global);
     return;
   }
@@ -3332,6 +3347,8 @@ async function loadChats(
     console.info('[dialogs] empty state branch hit: no result fallback', { listType });
     // eslint-disable-next-line no-console
     console.info('[dialogs] loadChats set isFullyLoaded=true (fallback)', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loading resolved', { listType, reason: 'no-result-fallback' });
     // eslint-disable-next-line no-console
     console.info('[store] dialogs state after fallback', {
       listType,

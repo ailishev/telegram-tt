@@ -108,6 +108,8 @@ function clearStoredLegacySession() {
 
 export function loadStoredSession(): ApiSessionData | undefined {
   if (!hasStoredSession()) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] session restore fail', 'no stored session');
     return undefined;
   }
 
@@ -119,6 +121,8 @@ export function loadStoredSession(): ApiSessionData | undefined {
   }
 
   if (slotData.userId && !isNumericPeerId(slotData.userId)) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] session restore fail', 'non-telegram user id in slot');
     return undefined;
   }
 
@@ -134,6 +138,9 @@ export function loadStoredSession(): ApiSessionData | undefined {
     isTest: slotData.isTest || undefined,
   };
 
+  // eslint-disable-next-line no-console
+  console.info('[telegram] session restore success');
+
   return sessionData;
 }
 
@@ -144,9 +151,13 @@ function loadStoredLegacySession(): ApiSessionData | undefined {
 
   const userAuth = JSON.parse(safeStorage.getItem(SESSION_LEGACY_USER_KEY) || 'null');
   if (!userAuth) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] session restore fail', 'legacy session missing');
     return undefined;
   }
   if (userAuth.id && !isNumericPeerId(String(userAuth.id))) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] session restore fail', 'non-telegram legacy user id');
     return undefined;
   }
   const mainDcId = Number(userAuth.dcID);
@@ -169,6 +180,9 @@ function loadStoredLegacySession(): ApiSessionData | undefined {
   });
 
   if (!Object.keys(keys).length) return undefined;
+
+  // eslint-disable-next-line no-console
+  console.info('[telegram] session restore success');
 
   return {
     mainDcId,
