@@ -3,6 +3,7 @@ import type { ActionReturnType } from '../../types';
 import { ManagementProgress } from '../../../types';
 
 import { BOT_VERIFICATION_PEERS_LIMIT } from '../../../config';
+import { mapProfileIdToPeerId } from '../../../demo/supabaseClient';
 import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey, unique } from '../../../util/iteratees';
@@ -197,7 +198,7 @@ addActionHandler('loadCurrentUser', (): ActionReturnType => {
       const linkedCurrentUserId = currentGlobal.currentUserId;
       const resolvedUserId = linkedCurrentUserId && isNumericPeerId(linkedCurrentUserId)
         ? linkedCurrentUserId
-        : data.profile.id;
+        : mapProfileIdToPeerId(data.profile.id);
 
       const fallbackUser: ApiUser = {
         id: resolvedUserId,

@@ -8,6 +8,7 @@ import {
   buildMockDataFromSupabase,
   fetchDialogMessages,
   isSupabaseConfigured,
+  mapProfileIdToPeerId,
   searchBackend,
   sendDialogMessage,
   startPrivateDialog,
@@ -101,9 +102,10 @@ class TelegramClient {
   }
 
   private loadSavedMessagesOnly() {
+    const selfId = mapProfileIdToPeerId('local-self');
     this.mockData = {
       users: [{
-        id: '1',
+        id: selfId,
         self: true,
         firstName: 'User',
         lastName: '',
@@ -119,6 +121,7 @@ class TelegramClient {
       availableReactions: [],
       documents: [],
       topPeers: [],
+      currentUserPeerId: selfId,
     } as MockTypes;
 
     this.callbacks.forEach(({ eventBuilder, callback }) => (callback(
@@ -264,11 +267,14 @@ class TelegramClient {
     }
 
     if (request instanceof Api.users.GetFullUser) {
+      const defaultSelfId = (this.mockData as any).currentUserPeerId
+        || this.mockData.users.find((user) => (user as any).self)?.id
+        || this.mockData.users[0]?.id;
       const userId = request.id instanceof Api.InputUserSelf
-        ? '1'
+        ? defaultSelfId
         : request.id instanceof Api.InputUser
           ? request.id.userId.toString()
-          : '1';
+          : defaultSelfId;
       const currentUser = this.mockData.users.find((user) => user.id === userId)
         || this.mockData.users.find((user) => (user as any).self)
         || this.mockData.users[0];
@@ -356,11 +362,14 @@ class TelegramClient {
     }
 
     if (request instanceof Api.messages.GetDialogFilters) {
-      return [
-        new Api.DialogFilterDefault(),
-        ...this.mockData.dialogFilters
-          .map((dialogFilter) => createMockedDialogFilter(dialogFilter.id, this.mockData)),
-      ];
+      return new Api.messages.DialogFilters({
+        tagsEnabled: false,
+        filters: [
+          new Api.DialogFilterDefault(),
+          ...this.mockData.dialogFilters
+            .map((dialogFilter) => createMockedDialogFilter(dialogFilter.id, this.mockData)),
+        ],
+      });
     }
 
     if (request instanceof Api.messages.GetPinnedDialogs) {
@@ -426,7 +435,7 @@ class TelegramClient {
       const query = request.q || '';
       const result = await searchBackend(query).catch(() => ({ users: [] }));
       const users = result.users.map((profile, index) => {
-        const id = (index + 1000).toString();
+        const id = mapProfileIdToPeerId(profile.id, index + 1000);
         return new Api.User({
           id: BigInt(id),
           accessHash: 1n,
@@ -435,16 +444,36 @@ class TelegramClient {
           username: profile.username,
         });
       });
-
-      if (query.startsWith('@')) {
-        await startPrivateDialog(query.slice(1)).catch(() => undefined);
-      }
-
       return new Api.contacts.Found({
         myResults: [],
         results: [],
         chats: [],
         users,
+      });
+    }
+
+    if (request instanceof Api.contacts.ResolveUsername) {
+      const username = request.username;
+      const searchResult = await searchBackend(username).catch(() => ({ users: [] as any[] }));
+      const matched = searchResult.users.find((user) => user.username === username)
+        || searchResult.users[0];
+      if (!matched) {
+        return undefined;
+      }
+
+      await startPrivateDialog(username).catch(() => undefined);
+      await this.loadFromSupabase();
+
+      const peerId = mapProfileIdToPeerId(matched.id);
+      const user = this.mockData.users.find((u) => u.id === peerId);
+      if (!user) {
+        return undefined;
+      }
+
+      return new Api.contacts.ResolvedPeer({
+        peer: new Api.PeerUser({ userId: BigInt(peerId) }),
+        chats: [],
+        users: [createMockedUser(user.id, this.mockData)],
       });
     }
 

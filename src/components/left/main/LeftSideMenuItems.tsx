@@ -86,7 +86,6 @@ const LeftSideMenuItems = ({
     loadPeerSavedGifts,
     openChatByUsername,
     openUrl,
-    openSettingsScreen,
     loadCurrentUser,
   } = getActions();
   const lang = useLang();
@@ -103,16 +102,10 @@ const LeftSideMenuItems = ({
   const handleSelectMyProfile = useLastCallback(() => {
     // eslint-disable-next-line no-console
     console.info('[profile] my profile clicked', { currentUserId });
-    // eslint-disable-next-line no-console
-    console.info('[profile] action dispatched', { action: 'openChatWithInfo', currentUserId });
     loadCurrentUser();
-    if (!currentUserId) return;
-    if (!isNumericPeerId(currentUserId)) {
-      // eslint-disable-next-line no-console
-      console.info('[profile] opening local profile via settings fallback', { currentUserId });
-      openSettingsScreen({ screen: SettingsScreens.Main });
-      return;
-    }
+    if (!currentUserId || !isNumericPeerId(currentUserId)) return;
+    // eslint-disable-next-line no-console
+    console.info('[profile] action dispatched', { action: 'open-own-profile', currentUserId });
     loadFullUser({ userId: currentUserId, withPhotos: true });
     loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
     openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });

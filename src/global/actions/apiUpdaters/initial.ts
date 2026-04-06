@@ -8,7 +8,7 @@ import type {
   ApiUpdateSession,
   ApiUpdateUserAlreadyAuthorized,
 } from '../../../api/types';
-import { SettingsScreens, type LangCode } from '../../../types';
+import { type LangCode } from '../../../types';
 import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
 
@@ -363,8 +363,7 @@ function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: str
 
   if (!isNumericPeerId(currentUserId)) {
     // eslint-disable-next-line no-console
-    console.info('[profile] telegram profile flow skipped for non-telegram id', { currentUserId });
-    actions.openSettingsScreen({ screen: SettingsScreens.Main, tabId });
+    console.info('[profile] profile view skipped until self peer is adapted', { currentUserId });
     return;
   }
 
