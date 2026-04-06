@@ -158,7 +158,37 @@ addActionHandler('loadContactList', async (global): Promise<void> => {
 });
 
 addActionHandler('loadCurrentUser', (): ActionReturnType => {
-  void callApi('fetchCurrentUser');
+  void (async () => {
+    // eslint-disable-next-line no-console
+    console.info('[profile] action dispatched', { action: 'loadCurrentUser' });
+    const result = await callApi('fetchCurrentUser');
+    if (!result?.currentUser) {
+      return;
+    }
+
+    let global = getGlobal();
+    // eslint-disable-next-line no-console
+    console.info('[store] profile state before', {
+      currentUserId: global.currentUserId,
+      hasCurrentUser: Boolean(global.currentUserId && selectUser(global, global.currentUserId)),
+    });
+    global = updateUser(global, result.currentUser.id, result.currentUser);
+    global = updateUserFullInfo(global, result.currentUser.id, result.currentUserFullInfo);
+    global = {
+      ...global,
+      currentUserId: result.currentUser.id,
+    };
+    setGlobal(global);
+    // eslint-disable-next-line no-console
+    console.info('[profile] backend current user/profile loaded', { currentUserId: result.currentUser.id });
+    // eslint-disable-next-line no-console
+    console.info('[profile] adapted user created', { currentUserId: result.currentUser.id });
+    // eslint-disable-next-line no-console
+    console.info('[store] profile state after', {
+      currentUserId: global.currentUserId,
+      hasCurrentUser: Boolean(global.currentUserId && selectUser(global, global.currentUserId)),
+    });
+  })();
 });
 
 addActionHandler('loadCommonChats', async (global, actions, payload): Promise<void> => {
