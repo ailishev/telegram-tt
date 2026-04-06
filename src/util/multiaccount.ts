@@ -9,17 +9,7 @@ import {
   SESSION_ACCOUNT_PREFIX,
 } from '../config';
 import { IS_MULTIACCOUNT_SUPPORTED } from './browser/globalEnvironment';
-
-const safeStorage: Storage = typeof globalThis !== 'undefined' && 'localStorage' in globalThis
-  ? globalThis.localStorage
-  : {
-    getItem: () => null,
-    setItem: () => undefined,
-    removeItem: () => undefined,
-    clear: () => undefined,
-    key: () => null,
-    length: 0,
-  };
+import { safeStorage } from './browser/safeStorage';
 
 const WORKER_NAME = typeof WorkerGlobalScope !== 'undefined' && globalThis.self instanceof WorkerGlobalScope
   ? globalThis.self.name : undefined;

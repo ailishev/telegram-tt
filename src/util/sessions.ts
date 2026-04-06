@@ -7,19 +7,9 @@ import {
   SESSION_ACCOUNT_PREFIX,
   SESSION_LEGACY_USER_KEY,
 } from '../config';
+import { safeStorage } from './browser/safeStorage';
 import { isNumericPeerId } from './entities/ids';
 import { ACCOUNT_SLOT, storeAccountData, writeSlotSession } from './multiaccount';
-
-const safeStorage: Storage = typeof globalThis !== 'undefined' && 'localStorage' in globalThis
-  ? globalThis.localStorage
-  : {
-    getItem: () => null,
-    setItem: () => undefined,
-    removeItem: () => undefined,
-    clear: () => undefined,
-    key: () => null,
-    length: 0,
-  };
 
 export function hasStoredSession() {
   if (checkSessionLocked()) {
