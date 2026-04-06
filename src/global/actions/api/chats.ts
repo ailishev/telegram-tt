@@ -3269,7 +3269,26 @@ async function loadChats(
   const isFirstBatch = !shouldIgnorePagination && !offsetPeer && !offsetDate && !offsetId;
   const shouldReplaceStaleState = listType === 'active' && isFirstBatch;
   const isAccountFreeze = selectIsCurrentUserFrozen(global);
-  const currentUser = selectUser(global, global.currentUserId!)!;
+  const currentUserId = global.currentUserId;
+  const currentUser = currentUserId ? selectUser(global, currentUserId) : undefined;
+
+  if (!currentUserId || !currentUser) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] skipped because Telegram not linked', { listType, currentUserId });
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    setGlobal(global);
+    return;
+  }
 
   const result = listType === 'saved' ? await callApi('fetchSavedChats', {
     parentPeer: currentUser,
@@ -3291,6 +3310,35 @@ async function loadChats(
   if (!result) {
     // eslint-disable-next-line no-console
     console.warn('[dialogs] loadChats no result', { listType });
+    global = getGlobal();
+    // eslint-disable-next-line no-console
+    console.info('[store] dialogs state before fallback', {
+      listType,
+      listLength: global.chats.listIds[listType]?.length,
+      isFullyLoaded: global.chats.isFullyLoaded[listType],
+    });
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state branch hit: no result fallback', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loadChats set isFullyLoaded=true (fallback)', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[store] dialogs state after fallback', {
+      listType,
+      listLength: global.chats.listIds[listType]?.length,
+      isFullyLoaded: global.chats.isFullyLoaded[listType],
+    });
+    setGlobal(global);
     return;
   }
 
@@ -3299,6 +3347,12 @@ async function loadChats(
   console.info('[dialogs] loadChats response', { listType, chatIdsCount: chatIds.length, totalChatCount: result.totalChatCount });
 
   global = getGlobal();
+  // eslint-disable-next-line no-console
+  console.info('[store] dialogs state before update', {
+    listType,
+    listLength: global.chats.listIds[listType]?.length,
+    isFullyLoaded: global.chats.isFullyLoaded[listType],
+  });
   lastLocalServiceMessageId = selectLastServiceNotification(global)?.id;
 
   const newChats = buildCollectionByKey(result.chats, 'id');
@@ -3306,8 +3360,12 @@ async function loadChats(
   global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
   global = updateChats(global, newChats);
   if (isFirstBatch) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] adapted dialog count', { listType, adaptedDialogCount: chatIds.length });
     global = replaceChatListIds(global, listType, chatIds);
   } else {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] adapted dialog count', { listType, adaptedDialogCount: chatIds.length });
     global = addChatListIds(global, listType, chatIds);
   }
 
@@ -3358,6 +3416,27 @@ async function loadChats(
       },
     };
   }
+
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loading flag set false', {
+    listType,
+    hasNextOffset: Boolean(result.nextOffsetId || result.nextOffsetPeerId || result.nextOffsetDate),
+  });
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loaded state set', {
+    listType,
+    isFullyLoaded: global.chats.isFullyLoaded[listType],
+  });
+  if (!chatIds.length) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state branch hit', { listType });
+  }
+  // eslint-disable-next-line no-console
+  console.info('[store] dialogs state after update', {
+    listType,
+    listLength: global.chats.listIds[listType]?.length,
+    isFullyLoaded: global.chats.isFullyLoaded[listType],
+  });
 
   setGlobal(global);
 
