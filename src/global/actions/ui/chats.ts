@@ -158,8 +158,11 @@ function processChatInfoState<T extends GlobalState>({
   tabId: number;
 }) {
   const currentChatInfo = selectTabState(global, tabId).chatInfo;
+  const shouldResetProfileTab = isOwnProfile === true;
 
-  const newProfileTab = profileTab ?? (isSameMessageList ? currentChatInfo.profileTab : undefined);
+  const newProfileTab = shouldResetProfileTab
+    ? profileTab
+    : (profileTab ?? (isSameMessageList ? currentChatInfo.profileTab : undefined));
   const newForceScrollProfileTab = forceScrollProfileTab
     ?? (isSameMessageList ? currentChatInfo.forceScrollProfileTab : undefined);
   const newIsOwnProfile = isOwnProfile ?? (isSameMessageList ? currentChatInfo.isOwnProfile : undefined);

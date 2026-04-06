@@ -163,6 +163,62 @@ addActionHandler('loadCurrentUser', (): ActionReturnType => {
     console.info('[profile] action dispatched', { action: 'loadCurrentUser' });
     const result = await callApi('fetchCurrentUser');
     if (!result?.currentUser) {
+      try {
+        const response = await fetch('/api/profile/get-current', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+
+        const data = await response.json() as {
+          profile?: {
+            id: string;
+            phoneNumber?: string;
+            firstName?: string;
+            lastName?: string;
+            username?: string;
+            bio?: string;
+            avatarUrl?: string;
+            isVerified?: boolean;
+            isPremium?: boolean;
+            gifts?: unknown[];
+          };
+        };
+
+        if (!data.profile?.id) return;
+
+        const fallbackUser: ApiUser = {
+          id: data.profile.id,
+          isMin: false,
+          isSelf: true,
+          type: 'userTypeRegular',
+          phoneNumber: data.profile.phoneNumber || '',
+          firstName: data.profile.firstName,
+          lastName: data.profile.lastName,
+          usernames: data.profile.username ? [{ username: data.profile.username, isActive: true }] : undefined,
+          hasUsername: Boolean(data.profile.username),
+          isVerified: data.profile.isVerified ? true : undefined,
+          isPremium: Boolean(data.profile.isPremium),
+        };
+
+        let global = getGlobal();
+        global = updateUser(global, fallbackUser.id, fallbackUser);
+        global = updateUserFullInfo(global, fallbackUser.id, {
+          bio: data.profile.bio,
+          starGiftCount: data.profile.gifts?.length,
+        });
+        global = {
+          ...global,
+          currentUserId: fallbackUser.id,
+        };
+        setGlobal(global);
+
+        // eslint-disable-next-line no-console
+        console.info('[profile] local profile loaded from DB fallback', { profileId: fallbackUser.id });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[profile] DB fallback for current profile failed', err);
+      }
       return;
     }
 
