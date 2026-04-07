@@ -5,6 +5,7 @@ import {
 } from '../../../lib/gramjs';
 import type { TwoFaParams } from '../../../lib/gramjs/client/2fa';
 import TelegramClient from '../../../lib/gramjs/client/TelegramClient';
+import MockTelegramClient from '../../../lib/gramjs/client/MockClient';
 import { RPCError } from '../../../lib/gramjs/errors';
 import { Logger as GramJsLogger } from '../../../lib/gramjs/extensions/index';
 
@@ -18,7 +19,7 @@ import type {
 
 import {
   APP_CODE_NAME,
-  DEBUG, DEBUG_GRAMJS, IS_TEST, LANG_PACK, UPLOAD_WORKERS,
+  DEBUG, DEBUG_GRAMJS, IS_BACKEND_ADAPTER_ONLY, IS_TEST, LANG_PACK, UPLOAD_WORKERS,
 } from '../../../config';
 import { pause } from '../../../util/schedulers';
 import { clearStoredSession } from '../../../util/sessions';
@@ -102,26 +103,32 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
 
   (self as any).maxBufferSize = maxBufferSize;
 
-  client = new TelegramClient(
-    session,
-    Number(process.env.TELEGRAM_API_ID),
-    process.env.TELEGRAM_API_HASH,
-    {
-      deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
-      systemVersion: platform || DEFAULT_PLATFORM,
-      appVersion: `${APP_VERSION} ${APP_CODE_NAME}`,
-      useWSS: true,
-      additionalDcsDisabled: IS_TEST,
-      shouldDebugExportedSenders,
-      shouldForceHttpTransport,
-      shouldAllowHttpTransport,
-      dcId,
-      langPack: LANG_PACK,
-      langCode,
-      systemLangCode: navigator.language,
-      isTestServerRequested,
-    } as any,
-  );
+  if (IS_BACKEND_ADAPTER_ONLY) {
+    // eslint-disable-next-line no-console
+    console.info('[adapter] backend-only mode enabled: using MockTelegramClient');
+    client = new MockTelegramClient() as unknown as TelegramClient;
+  } else {
+    client = new TelegramClient(
+      session,
+      Number(process.env.TELEGRAM_API_ID),
+      process.env.TELEGRAM_API_HASH,
+      {
+        deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
+        systemVersion: platform || DEFAULT_PLATFORM,
+        appVersion: `${APP_VERSION} ${APP_CODE_NAME}`,
+        useWSS: true,
+        additionalDcsDisabled: IS_TEST,
+        shouldDebugExportedSenders,
+        shouldForceHttpTransport,
+        shouldAllowHttpTransport,
+        dcId,
+        langPack: LANG_PACK,
+        langCode,
+        systemLangCode: navigator.language,
+        isTestServerRequested,
+      } as any,
+    );
+  }
 
   client.addEventHandler(handleGramJsUpdate, gramJsUpdateEventBuilder);
 
