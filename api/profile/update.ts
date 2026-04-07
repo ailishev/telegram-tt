@@ -1,7 +1,8 @@
-import { prisma } from '../_lib/prisma.js';
-import { hashSessionToken, parseBody, readSessionToken } from '../_lib/http.js';
+import { prisma } from '../../server/prisma.js';
+import { hashSessionToken, parseBody, readSessionToken } from '../../server/http.js';
 
 export default async function handler(req: any, res: any) {
+  console.info('[profile][api] update request', { method: req.method });
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -55,4 +56,5 @@ export default async function handler(req: any, res: any) {
       isVerified: profile.isVerified,
     },
   });
+  console.info('[profile][api] profile update saved', { profileId: profile.id });
 }

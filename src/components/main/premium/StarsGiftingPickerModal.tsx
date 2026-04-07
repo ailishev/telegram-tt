@@ -47,7 +47,13 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
 
   const displayedUserIds = useMemo(() => {
     const usersById = getGlobal().users.byId;
+    const durovId = Object.keys(usersById).find((id) => (
+      usersById[id]?.usernames?.some((u) => u.isActive && u.username.toLowerCase() === 'durov')
+    ));
+
     const combinedIds = unique([
+      ...(currentUserId ? [currentUserId] : []),
+      ...(durovId ? [durovId] : []),
       ...(userIds || []),
       ...(activeListIds || []),
       ...(archivedListIds || []),
@@ -66,8 +72,16 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
 
       return !user.isSupport
         && !isUserBot(user) && !isDeletedUser(user)
-        && id !== currentUserId && id !== SERVICE_NOTIFICATIONS_USER_ID;
-    }));
+        && id !== SERVICE_NOTIFICATIONS_USER_ID;
+    })).sort((a, b) => {
+      const userA = usersById[a];
+      const userB = usersById[b];
+      const usernameA = userA?.usernames?.find((u) => u.isActive)?.username?.toLowerCase();
+      const usernameB = userB?.usernames?.find((u) => u.isActive)?.username?.toLowerCase();
+      const scoreA = usernameA === 'durov' ? 0 : 1;
+      const scoreB = usernameB === 'durov' ? 0 : 1;
+      return scoreA - scoreB;
+    });
   }, [currentUserId, searchQuery, userIds, activeListIds, archivedListIds]);
 
   const handleSelectedUserIdsChange = useLastCallback((newSelectedId?: string) => {

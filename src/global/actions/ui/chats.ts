@@ -158,8 +158,11 @@ function processChatInfoState<T extends GlobalState>({
   tabId: number;
 }) {
   const currentChatInfo = selectTabState(global, tabId).chatInfo;
+  const shouldResetProfileTab = isOwnProfile === true;
 
-  const newProfileTab = profileTab ?? (isSameMessageList ? currentChatInfo.profileTab : undefined);
+  const newProfileTab = shouldResetProfileTab
+    ? profileTab
+    : (profileTab ?? (isSameMessageList ? currentChatInfo.profileTab : undefined));
   const newForceScrollProfileTab = forceScrollProfileTab
     ?? (isSameMessageList ? currentChatInfo.forceScrollProfileTab : undefined);
   const newIsOwnProfile = isOwnProfile ?? (isSameMessageList ? currentChatInfo.isOwnProfile : undefined);
@@ -177,6 +180,8 @@ function processChatInfoState<T extends GlobalState>({
     }, tabId);
     global = { ...global, lastIsChatInfoShown: true };
     setGlobal(global);
+    // eslint-disable-next-line no-console
+    console.info('[profile] profile view opened', { tabId, isOwnProfile: newIsOwnProfile, profileTab: newProfileTab });
   });
 }
 

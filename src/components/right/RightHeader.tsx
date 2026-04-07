@@ -249,6 +249,8 @@ const RightHeader: FC<OwnProps & StateProps> = ({
   });
 
   const handleEditProfile = useLastCallback(() => {
+    // eslint-disable-next-line no-console
+    console.info('[profile] edit profile opened', { chatId, userId });
     openSettingsScreen({ screen: SettingsScreens.EditProfile });
   });
 

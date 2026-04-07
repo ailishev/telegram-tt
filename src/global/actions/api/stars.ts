@@ -9,10 +9,13 @@ import type { ActionReturnType } from '../../types';
 
 import {
   DEFAULT_RESALE_GIFTS_FILTER_OPTIONS,
+  IS_MOCKED_CLIENT,
   STARS_CURRENCY_CODE,
   TON_CURRENCY_CODE,
 } from '../../../config';
+import { getDemoPurchasedGifts, syncDemoPurchasedGiftsFromBackend } from '../../../demo/demoEconomy';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { buildCollectionByCallback, buildCollectionByKey } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi } from '../../../api/gramjs';
@@ -338,6 +341,8 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     peerId, shouldRefresh, tabId = getCurrentTabId(),
   } = payload;
 
+  if (!isNumericPeerId(peerId)) return;
+
   const peer = selectPeer(global, peerId);
   if (!peer) return;
 
@@ -350,6 +355,24 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   if (!shouldRefresh && currentGifts && !localNextOffset) return; // Already loaded all
 
   const fetchingFilter = selectGiftProfileFilter(global, peerId, tabId);
+
+  if ((IS_MOCKED_CLIENT || peerId === global.currentUserId) && (shouldRefresh || !currentGifts)) {
+    const backendProfile = await fetch('/api/profile/get-current', {
+      method: 'GET',
+      credentials: 'include',
+    }).then((response) => (response.ok ? response.json() : undefined)).catch(() => undefined) as {
+      profile?: {
+        gifts?: Array<{ id: string; title?: string; acquiredAt?: string }>;
+      };
+    } | undefined;
+
+    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+
+    global = getGlobal();
+    global = replacePeerSavedGifts(global, peerId, getDemoPurchasedGifts(), undefined, tabId);
+    setGlobal(global);
+    return;
+  }
 
   const result = await callApi('fetchSavedStarGifts', {
     peer,

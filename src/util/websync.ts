@@ -5,6 +5,7 @@ import {
   DEBUG, IS_MOCKED_CLIENT,
 } from '../config';
 import { IS_TAURI } from './browser/globalEnvironment';
+import { safeStorage } from './browser/safeStorage';
 import { hasStoredSession } from './sessions';
 
 const WEBSYNC_URLS = [
@@ -21,7 +22,7 @@ const getTs = () => {
 
 const saveSync = (authed: boolean) => {
   const ts = getTs();
-  localStorage.setItem(WEBSYNC_KEY, JSON.stringify({
+  safeStorage.setItem(WEBSYNC_KEY, JSON.stringify({
     canRedirect: authed,
     ts,
   }));
@@ -33,7 +34,7 @@ export const forceWebsync = (authed: boolean) => {
   if (IS_MOCKED_CLIENT || IS_TAURI) return undefined;
   const currentTs = getTs();
 
-  const { canRedirect, ts } = JSON.parse(localStorage.getItem(WEBSYNC_KEY) || '{}');
+  const { canRedirect, ts } = JSON.parse(safeStorage.getItem(WEBSYNC_KEY) || '{}');
 
   if (canRedirect !== authed || ts + WEBSYNC_TIMEOUT <= currentTs) {
     return Promise.all(WEBSYNC_URLS.map((url) => {
@@ -85,7 +86,7 @@ export function startWebsync() {
   if (lastTimeout !== undefined) return;
   const currentTs = getTs();
 
-  const { ts } = JSON.parse(localStorage.getItem(WEBSYNC_KEY) || '{}');
+  const { ts } = JSON.parse(safeStorage.getItem(WEBSYNC_KEY) || '{}');
 
   const timeout = WEBSYNC_TIMEOUT - (currentTs - ts);
 
@@ -98,5 +99,5 @@ export function startWebsync() {
 }
 
 export function clearWebsync() {
-  localStorage.removeItem(WEBSYNC_KEY);
+  safeStorage.removeItem(WEBSYNC_KEY);
 }

@@ -120,7 +120,7 @@ export function selectIsChatBotNotStarted<T extends GlobalState>(global: T, chat
 }
 
 export function selectAreActiveChatsLoaded<T extends GlobalState>(global: T): boolean {
-  return Boolean(global.chats.listIds.active);
+  return Boolean(global.chats.listIds.active) || Boolean(global.chats.isFullyLoaded.active);
 }
 
 export function selectIsChatListed<T extends GlobalState>(
