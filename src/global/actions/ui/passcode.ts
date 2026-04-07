@@ -7,6 +7,7 @@ import { cloneDeep } from '../../../util/iteratees';
 import {
   clearEncryptedSession, encryptSession, forgetPasscode, setupPasscode,
 } from '../../../util/passcode';
+import { safeStorage } from '../../../util/browser/safeStorage';
 import { onBeforeUnload } from '../../../util/schedulers';
 import { clearStoredSession, loadStoredSession, storeSession } from '../../../util/sessions';
 import { forceUpdateCache, migrateCache, serializeGlobal } from '../../cache';
@@ -72,7 +73,7 @@ addActionHandler('setPasscode', async (global, actions, payload): Promise<void> 
 addActionHandler('clearPasscode', (global): ActionReturnType => {
   void clearEncryptedSession();
 
-  localStorage.removeItem(IS_SCREEN_LOCKED_CACHE_KEY);
+  safeStorage.removeItem(IS_SCREEN_LOCKED_CACHE_KEY);
   return clearPasscodeSettings(global);
 });
 

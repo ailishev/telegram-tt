@@ -32,7 +32,7 @@ export function parseCookies(req: any): Record<string, string> {
     return {};
   }
 
-  return cookieHeader.split(';').reduce((acc, chunk) => {
+  return cookieHeader.split(';').reduce((acc: Record<string, string>, chunk: string) => {
     const [rawKey, ...rest] = chunk.trim().split('=');
     const key = rawKey?.trim();
     if (!key) return acc;

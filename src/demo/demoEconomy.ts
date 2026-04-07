@@ -1,6 +1,7 @@
 import type { ApiSavedStarGift, ApiStarGiftRegular, ApiTypeCurrencyAmount } from '../api/types';
 
 import { STARS_CURRENCY_CODE } from '../config';
+import { safeStorage } from '../util/browser/safeStorage';
 
 const BALANCE_KEY = 'demo.stars.balance';
 const GIFTS_KEY = 'demo.stars.gifts';
@@ -45,16 +46,16 @@ const DEMO_GIFTS: ApiStarGiftRegular[] = [
 ];
 
 function readBalance() {
-  const value = Number(localStorage.getItem(BALANCE_KEY));
+  const value = Number(safeStorage.getItem(BALANCE_KEY));
   return Number.isFinite(value) ? value : INITIAL_STARS;
 }
 
 function writeBalance(value: number) {
-  localStorage.setItem(BALANCE_KEY, String(Math.max(0, value)));
+  safeStorage.setItem(BALANCE_KEY, String(Math.max(0, value)));
 }
 
 function readPurchasedGifts(): ApiSavedStarGift[] {
-  const raw = localStorage.getItem(GIFTS_KEY);
+  const raw = safeStorage.getItem(GIFTS_KEY);
   if (!raw) return [];
 
   try {
@@ -65,7 +66,7 @@ function readPurchasedGifts(): ApiSavedStarGift[] {
 }
 
 function writePurchasedGifts(gifts: ApiSavedStarGift[]) {
-  localStorage.setItem(GIFTS_KEY, JSON.stringify(gifts));
+  safeStorage.setItem(GIFTS_KEY, JSON.stringify(gifts));
 }
 
 export function getDemoStarGifts() {
@@ -112,6 +113,6 @@ export function buyDemoGift(giftId: string) {
 }
 
 export function resetDemoEconomy() {
-  localStorage.removeItem(BALANCE_KEY);
-  localStorage.removeItem(GIFTS_KEY);
+  safeStorage.removeItem(BALANCE_KEY);
+  safeStorage.removeItem(GIFTS_KEY);
 }
