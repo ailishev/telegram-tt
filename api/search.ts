@@ -25,19 +25,16 @@ export default async function handler(req: any, res: any) {
 
   const qRaw = String(req.query?.q || '').trim();
   const q = qRaw.startsWith('@') ? qRaw.slice(1) : qRaw;
-  if (!q) {
-    res.status(200).json({ users: [], dialogs: [] });
-    return;
-  }
-
   const users = await prisma.profile.findMany({
-    where: {
+    where: q ? {
       OR: [
         { username: { contains: q, mode: 'insensitive' } },
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName: { contains: q, mode: 'insensitive' } },
         { displayName: { contains: q, mode: 'insensitive' } },
       ],
+    } : {
+      id: session.profileId,
     },
     take: 20,
   });
@@ -50,8 +47,15 @@ export default async function handler(req: any, res: any) {
 
   const dialogs = memberships
     .map((membership) => membership.dialog)
-    .filter((dialog) => dialog.title?.toLowerCase().includes(q.toLowerCase()));
+    .filter((dialog) => !q || dialog.title?.toLowerCase().includes(q.toLowerCase()));
 
-  console.info('[search][api] response', { usersCount: users.length, dialogsCount: dialogs.length });
-  res.status(200).json({ users, dialogs });
+  const selfProfile = users.find((user) => user.id === session.profileId)
+    || await prisma.profile.findUnique({ where: { id: session.profileId } });
+
+  const resultUsers = selfProfile
+    ? [selfProfile, ...users.filter((user) => user.id !== selfProfile.id)]
+    : users;
+
+  console.info('[search][api] response', { usersCount: resultUsers.length, dialogsCount: dialogs.length });
+  res.status(200).json({ users: resultUsers, dialogs });
 }

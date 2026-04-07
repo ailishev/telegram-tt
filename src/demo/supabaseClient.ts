@@ -82,15 +82,16 @@ async function callBackendPost<T>(path: string, body: Record<string, unknown>): 
 
 export const isSupabaseConfigured = () => true;
 
-export function mapProfileIdToPeerId(profileId: string, fallback = 1) {
-  const digitsOnly = profileId.replace(/[^\d]/g, '').slice(0, 11);
+export function mapProfileIdToPeerId(profileId?: string, fallback = 1) {
+  const safeProfileId = String(profileId || '').trim() || `local-${fallback}`;
+  const digitsOnly = safeProfileId.replace(/[^\d]/g, '').slice(0, 11);
   if (digitsOnly) {
     return `9${digitsOnly}`;
   }
 
   let hash = 0;
-  for (let i = 0; i < profileId.length; i++) {
-    hash = ((hash << 5) - hash) + profileId.charCodeAt(i);
+  for (let i = 0; i < safeProfileId.length; i++) {
+    hash = ((hash << 5) - hash) + safeProfileId.charCodeAt(i);
     hash |= 0;
   }
   const positive = Math.abs(hash) + 1000 + fallback;

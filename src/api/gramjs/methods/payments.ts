@@ -140,7 +140,7 @@ export async function sendStarPaymentForm({
         const giftTitle = inputInvoice.giftId === 'demo-gift-1' ? 'Плюш Пепе'
           : inputInvoice.giftId === 'demo-gift-2' ? 'Плюш Пепе (Руби)'
             : 'Подарок';
-        await fetch('/api/profile/gifts/send', {
+        await fetch('/api/profile/gifts', {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -150,6 +150,22 @@ export async function sendStarPaymentForm({
             title: giftTitle,
             rarity: 'demo',
           }),
+        }).then(async (response) => {
+          if (response.ok || response.status !== 404) {
+            return;
+          }
+
+          await fetch('/api/profile/gifts/send', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              title: giftTitle,
+              rarity: 'demo',
+            }),
+          }).catch(() => undefined);
         }).catch(() => undefined);
       }
       return wasBought ? { completed: true } : undefined;
