@@ -43,6 +43,7 @@ import {
   signInWithPhone,
   signOut,
 } from '../../../demo/fakeAuth';
+import { mapProfileIdToPeerId } from '../../../demo/supabaseClient';
 import { requestDemoLoginCode } from '../../../demo/api/auth';
 import { removeGlobalFromCache, removeSharedStateFromCache, serializeGlobal } from '../../cache';
 import {
@@ -113,9 +114,15 @@ addActionHandler('initApi', (global, actions): ActionReturnType => {
       }));
       if (demoSession) {
         const currentGlobal = getGlobal();
+        const adaptedCurrentUserId = mapProfileIdToPeerId(demoSession.userId);
+        // eslint-disable-next-line no-console
+        console.info('[adapter] mapped backend profile to self peer', {
+          profileId: demoSession.userId,
+          peerId: adaptedCurrentUserId,
+        });
         setGlobal({
           ...currentGlobal,
-          currentUserId: '1',
+          currentUserId: adaptedCurrentUserId,
         });
       }
     })();
@@ -198,9 +205,15 @@ addActionHandler('setAuthCode', async (global, actions, payload): Promise<void> 
         state: demoSession.needsOnboarding ? 'authorizationStateWaitRegistration' : 'authorizationStateReady',
       }));
       const currentGlobal = getGlobal();
+      const adaptedCurrentUserId = mapProfileIdToPeerId(demoSession.userId);
+      // eslint-disable-next-line no-console
+      console.info('[adapter] mapped backend profile to self peer', {
+        profileId: demoSession.userId,
+        peerId: adaptedCurrentUserId,
+      });
       setGlobal({
         ...currentGlobal,
-        currentUserId: '1',
+        currentUserId: adaptedCurrentUserId,
       });
     } catch {
       setGlobal(updateAuth(getGlobal(), {

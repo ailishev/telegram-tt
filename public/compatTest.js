@@ -1,4 +1,22 @@
 function compatTest() {
+  function getStorageItemSafely(key) {
+    try {
+      return window.localStorage ? window.localStorage.getItem(key) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStorageItemSafely(key, value) {
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) {
+      // Ignore blocked storage.
+    }
+  }
+
   var hasPromise = typeof Promise !== 'undefined';
   var hasWebSockets = typeof WebSocket !== 'undefined';
   var hasWebCrypto = window.crypto && typeof window.crypto.subtle !== 'undefined';
@@ -19,7 +37,7 @@ function compatTest() {
     && hasCssSupports && hasDisplayNames && hasPluralRules && hasNumberFormat && hasWebLocks && hasBigInt && hasBroadcastChannel
     && hasArrayAt && hasDecompressionStream;
 
-  if (isCompatible || (window.localStorage && window.localStorage.getItem('tt-ignore-compat'))) {
+  if (isCompatible || getStorageItemSafely('tt-ignore-compat')) {
     window.isCompatTestPassed = true;
     return;
   }
@@ -54,7 +72,7 @@ function compatTest() {
   }
 
   window.ignore.addEventListener('click', function() {
-    window.localStorage.setItem('tt-ignore-compat', '1');
+    setStorageItemSafely('tt-ignore-compat', '1');
     window.location.reload();
   });
 }
