@@ -47,7 +47,13 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
 
   const displayedUserIds = useMemo(() => {
     const usersById = getGlobal().users.byId;
+    const durovId = Object.keys(usersById).find((id) => (
+      usersById[id]?.usernames?.some((u) => u.isActive && u.username.toLowerCase() === 'durov')
+    ));
+
     const combinedIds = unique([
+      ...(currentUserId ? [currentUserId] : []),
+      ...(durovId ? [durovId] : []),
       ...(userIds || []),
       ...(activeListIds || []),
       ...(archivedListIds || []),
