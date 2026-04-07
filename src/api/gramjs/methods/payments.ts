@@ -136,6 +136,22 @@ export async function sendStarPaymentForm({
   if (IS_MOCKED_CLIENT) {
     if (inputInvoice.type === 'stargift') {
       const wasBought = buyDemoGift(inputInvoice.giftId);
+      if (wasBought) {
+        const giftTitle = inputInvoice.giftId === 'demo-gift-1' ? 'Плюш Пепе'
+          : inputInvoice.giftId === 'demo-gift-2' ? 'Плюш Пепе (Руби)'
+            : 'Подарок';
+        await fetch('/api/profile/gifts', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: giftTitle,
+            rarity: 'demo',
+          }),
+        }).catch(() => undefined);
+      }
       return wasBought ? { completed: true } : undefined;
     }
 

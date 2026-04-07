@@ -3,7 +3,9 @@ import type { ActionReturnType } from '../../types';
 import { ManagementProgress } from '../../../types';
 
 import { BOT_VERIFICATION_PEERS_LIMIT } from '../../../config';
-import { isUserId } from '../../../util/entities/ids';
+import { syncDemoPurchasedGiftsFromBackend } from '../../../demo/demoEconomy';
+import { mapProfileIdToPeerId } from '../../../demo/supabaseClient';
+import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey, unique } from '../../../util/iteratees';
 import * as langProvider from '../../../util/oldLangProvider';
@@ -48,6 +50,9 @@ const runThrottledForSearch = throttle((cb) => cb(), 500, false);
 
 addActionHandler('loadFullUser', async (global, actions, payload): Promise<void> => {
   const { userId, withPhotos } = payload;
+  if (!isNumericPeerId(userId)) {
+    return;
+  }
   const user = selectUser(global, userId);
   if (!user) {
     return;
@@ -84,6 +89,9 @@ addActionHandler('loadFullUser', async (global, actions, payload): Promise<void>
 
 addActionHandler('loadUser', async (global, actions, payload): Promise<void> => {
   const { userId } = payload;
+  if (!isNumericPeerId(userId)) {
+    return;
+  }
   const user = selectUser(global, userId);
   if (!user) {
     return;
@@ -158,11 +166,91 @@ addActionHandler('loadContactList', async (global): Promise<void> => {
 });
 
 addActionHandler('loadCurrentUser', (): ActionReturnType => {
-  void callApi('fetchCurrentUser');
+  void (async () => {
+    // eslint-disable-next-line no-console
+    console.info('[profile] action dispatched', { action: 'loadCurrentUser' });
+    try {
+      const response = await fetch('/api/profile/get-current', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      // eslint-disable-next-line no-console
+      console.info('[auth] local session restored =', response.ok);
+      if (!response.ok) return;
+
+      const data = await response.json() as {
+        profile?: {
+          id: string;
+          phoneNumber?: string;
+          firstName?: string;
+          lastName?: string;
+          username?: string;
+          bio?: string;
+          avatarUrl?: string;
+          isVerified?: boolean;
+          isPremium?: boolean;
+          gifts?: unknown[];
+        };
+      };
+
+      if (!data.profile?.id) return;
+
+      syncDemoPurchasedGiftsFromBackend((data.profile.gifts || []) as Array<{
+        id: string;
+        title?: string;
+        acquiredAt?: string;
+      }>);
+
+      const currentGlobal = getGlobal();
+      const linkedCurrentUserId = currentGlobal.currentUserId;
+      const resolvedUserId = linkedCurrentUserId && isNumericPeerId(linkedCurrentUserId)
+        ? linkedCurrentUserId
+        : mapProfileIdToPeerId(data.profile.id);
+
+      const fallbackUser: ApiUser = {
+        id: resolvedUserId,
+        isMin: false,
+        isSelf: true,
+        type: 'userTypeRegular',
+        phoneNumber: data.profile.phoneNumber || '',
+        firstName: data.profile.firstName,
+        lastName: data.profile.lastName,
+        usernames: data.profile.username ? [{ username: data.profile.username, isActive: true }] : undefined,
+        hasUsername: Boolean(data.profile.username),
+        isVerified: data.profile.isVerified ? true : undefined,
+        isPremium: Boolean(data.profile.isPremium),
+      };
+
+      let global = getGlobal();
+      global = updateUser(global, fallbackUser.id, fallbackUser);
+      global = updateUserFullInfo(global, fallbackUser.id, {
+        bio: data.profile.bio,
+        starGiftCount: data.profile.gifts?.length,
+      });
+      if (isNumericPeerId(fallbackUser.id)) {
+        global = {
+          ...global,
+          currentUserId: fallbackUser.id,
+        };
+      }
+      setGlobal(global);
+
+      // eslint-disable-next-line no-console
+      console.info('[profile] local profile loaded from backend session', { profileId: fallbackUser.id });
+      return;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[profile] backend current profile load failed', err);
+      return;
+    }
+  })();
 });
 
 addActionHandler('loadCommonChats', async (global, actions, payload): Promise<void> => {
   const { userId } = payload;
+  if (!isNumericPeerId(userId)) {
+    return;
+  }
 
   if (selectIsCurrentUserFrozen(global)) {
     return;

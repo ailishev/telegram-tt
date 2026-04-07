@@ -1,7 +1,8 @@
-import { prisma } from './_lib/prisma.js';
-import { hashSessionToken, readSessionToken } from './_lib/http.js';
+import { prisma } from '../server/prisma.js';
+import { hashSessionToken, readSessionToken } from '../server/http.js';
 
 export default async function handler(req: any, res: any) {
+  console.info('[search][api] request', { method: req.method, q: req.query?.q });
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -22,19 +23,18 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const q = String(req.query?.q || '').trim();
-  if (!q) {
-    res.status(200).json({ users: [], dialogs: [] });
-    return;
-  }
-
+  const qRaw = String(req.query?.q || '').trim();
+  const q = qRaw.startsWith('@') ? qRaw.slice(1) : qRaw;
   const users = await prisma.profile.findMany({
-    where: {
+    where: q ? {
       OR: [
         { username: { contains: q, mode: 'insensitive' } },
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName: { contains: q, mode: 'insensitive' } },
+        { displayName: { contains: q, mode: 'insensitive' } },
       ],
+    } : {
+      id: session.profileId,
     },
     take: 20,
   });
@@ -47,7 +47,15 @@ export default async function handler(req: any, res: any) {
 
   const dialogs = memberships
     .map((membership) => membership.dialog)
-    .filter((dialog) => dialog.title?.toLowerCase().includes(q.toLowerCase()));
+    .filter((dialog) => !q || dialog.title?.toLowerCase().includes(q.toLowerCase()));
 
-  res.status(200).json({ users, dialogs });
+  const selfProfile = users.find((user) => user.id === session.profileId)
+    || await prisma.profile.findUnique({ where: { id: session.profileId } });
+
+  const resultUsers = selfProfile
+    ? [selfProfile, ...users.filter((user) => user.id !== selfProfile.id)]
+    : users;
+
+  console.info('[search][api] response', { usersCount: resultUsers.length, dialogsCount: dialogs.length });
+  res.status(200).json({ users: resultUsers, dialogs });
 }
