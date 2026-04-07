@@ -17,6 +17,8 @@ import type {
 
 import {
   ACCEPTABLE_USERNAME_ERRORS,
+  IS_BACKEND_ADAPTER_ONLY,
+  IS_MOCKED_CLIENT,
   DEBUG,
   LANG_PACK,
   MUTE_INDEFINITE_TIMESTAMP,
@@ -595,7 +597,13 @@ export async function setPrivacySettings(
 }
 
 export async function updateIsOnline(isOnline: boolean) {
-  await invokeRequest(new GramJs.account.UpdateStatus({ offline: !isOnline }));
+  if (IS_MOCKED_CLIENT || IS_BACKEND_ADAPTER_ONLY) {
+    return;
+  }
+
+  await invokeRequest(new GramJs.account.UpdateStatus({ offline: !isOnline }), {
+    shouldIgnoreErrors: true,
+  });
 }
 
 export async function fetchContentSettings() {
