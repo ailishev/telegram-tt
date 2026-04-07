@@ -359,15 +359,16 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     };
   } | undefined;
 
-  const isOwnProfile = peerId === global.currentUserId;
+  const latestGlobal = getGlobal();
+  const isOwnProfile = peerId === latestGlobal.currentUserId;
   if (isOwnProfile) {
     syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
   }
 
   const newGifts = isOwnProfile ? getDemoPurchasedGifts() : [];
 
-  global = replacePeerSavedGifts(global, peerId, newGifts, undefined, tabId);
-  setGlobal(global);
+  const updatedGlobal = replacePeerSavedGifts(latestGlobal, peerId, newGifts, undefined, tabId);
+  setGlobal(updatedGlobal);
 });
 
 addActionHandler('reloadPeerSavedGifts', (global, actions, payload): ActionReturnType => {
