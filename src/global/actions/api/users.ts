@@ -3,6 +3,7 @@ import type { ActionReturnType } from '../../types';
 import { ManagementProgress } from '../../../types';
 
 import { BOT_VERIFICATION_PEERS_LIMIT } from '../../../config';
+import { syncDemoPurchasedGiftsFromBackend } from '../../../demo/demoEconomy';
 import { mapProfileIdToPeerId } from '../../../demo/supabaseClient';
 import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
@@ -193,6 +194,12 @@ addActionHandler('loadCurrentUser', (): ActionReturnType => {
       };
 
       if (!data.profile?.id) return;
+
+      syncDemoPurchasedGiftsFromBackend((data.profile.gifts || []) as Array<{
+        id: string;
+        title?: string;
+        acquiredAt?: string;
+      }>);
 
       const currentGlobal = getGlobal();
       const linkedCurrentUserId = currentGlobal.currentUserId;

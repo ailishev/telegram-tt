@@ -157,6 +157,25 @@ const LeftSideMenuItems = ({
     openUrl({ url: FEEDBACK_URL });
   });
 
+  const handleSendDemoGift = useLastCallback(() => {
+    void fetch('/api/profile/gifts', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: 'Подарок из меню',
+        rarity: 'manual',
+      }),
+    }).then(() => {
+      loadCurrentUser();
+      if (currentUserId && isNumericPeerId(currentUserId)) {
+        loadPeerSavedGifts?.({ peerId: currentUserId, shouldRefresh: true });
+      }
+    }).catch(() => undefined);
+  });
+
   return (
     <>
       {IS_MULTIACCOUNT_SUPPORTED && currentUser && (
@@ -213,6 +232,12 @@ const LeftSideMenuItems = ({
         onClick={onSelectSettings}
       >
         {lang('MenuSettings')}
+      </MenuItem>
+      <MenuItem
+        icon="gift"
+        onClick={handleSendDemoGift}
+      >
+        Отправить подарок
       </MenuItem>
       <NestedMenuItem
         icon="more"

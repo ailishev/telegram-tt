@@ -85,6 +85,60 @@ export function getDemoPurchasedGifts() {
   return readPurchasedGifts();
 }
 
+export function syncDemoPurchasedGiftsFromBackend(
+  gifts: Array<{ id: string; title?: string; acquiredAt?: string | Date }>,
+) {
+  if (!gifts?.length) return;
+
+  const current = readPurchasedGifts();
+  const existingIds = new Set(current.map((gift) => String(gift.savedId)));
+
+  const normalized = gifts
+    .filter((gift) => !existingIds.has(gift.id))
+    .map((gift) => {
+      const giftType: ApiStarGiftRegular = {
+        type: 'starGift',
+        id: `backend-gift-${gift.id}`,
+        title: gift.title || 'Подарок',
+        stars: 0,
+        starsToConvert: 0,
+        sticker: {
+          id: `backend-sticker-${gift.id}`,
+          isCustomEmoji: true,
+          emoji: '🎁',
+          isLottie: false,
+          isWebm: false,
+          width: 512,
+          height: 512,
+          setInfo: {
+            id: '0',
+            accessHash: '0',
+            title: 'Backend Gifts',
+            shortName: 'backend_gifts',
+            count: 1,
+            hash: 0,
+          },
+        } as any,
+      };
+
+      const acquiredAt = gift.acquiredAt ? new Date(gift.acquiredAt).getTime() : Date.now();
+      const date = Number.isFinite(acquiredAt) ? Math.floor(acquiredAt / 1000) : Math.floor(Date.now() / 1000);
+
+      return {
+        date,
+        gift: giftType,
+        savedId: gift.id,
+        message: {
+          text: 'Backend gift',
+          entities: [],
+        },
+      } as ApiSavedStarGift;
+    });
+
+  if (!normalized.length) return;
+  writePurchasedGifts([...normalized, ...current]);
+}
+
 export function buyDemoGift(giftId: string) {
   const gift = DEMO_GIFTS.find((item) => item.id === giftId);
   if (!gift) return false;
