@@ -103,11 +103,13 @@ const LeftSideMenuItems = ({
     // eslint-disable-next-line no-console
     console.info('[profile] my profile clicked', { currentUserId });
     loadCurrentUser();
-    if (!currentUserId || !isNumericPeerId(currentUserId)) return;
+    if (!currentUserId) return;
     // eslint-disable-next-line no-console
     console.info('[profile] action dispatched', { action: 'open-own-profile', currentUserId });
-    loadFullUser({ userId: currentUserId, withPhotos: true });
-    loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
+    if (isNumericPeerId(currentUserId)) {
+      loadFullUser({ userId: currentUserId, withPhotos: true });
+      loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
+    }
     openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
   });
 

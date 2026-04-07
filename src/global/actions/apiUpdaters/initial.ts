@@ -362,8 +362,12 @@ function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: str
   const tabState = selectTabState(global, tabId);
 
   if (!isNumericPeerId(currentUserId)) {
-    // eslint-disable-next-line no-console
-    console.info('[profile] profile view skipped until self peer is adapted', { currentUserId });
+    actions.openChatWithInfo({
+      id: currentUserId,
+      isOwnProfile: true,
+      shouldReplaceHistory: true,
+      tabId,
+    });
     return;
   }
 

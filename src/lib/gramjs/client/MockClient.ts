@@ -618,7 +618,31 @@ class TelegramClient {
 
   public setPingCallback() {}
 
+  public setIsPremium() {}
+
   public setShouldDebugExportedSenders() {}
+
+  public invokeBeacon() {}
+
+  public uploadFile() {
+    return undefined;
+  }
+
+  public updateTwoFaSettings() {
+    return undefined;
+  }
+
+  public getTmpPassword() {
+    return undefined;
+  }
+
+  public getCurrentPassword() {
+    return undefined;
+  }
+
+  public disconnect() {}
+
+  public destroy() {}
 
   public isConnected() {
     return true;
