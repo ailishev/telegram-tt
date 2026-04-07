@@ -23,7 +23,8 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const q = String(req.query?.q || '').trim();
+  const qRaw = String(req.query?.q || '').trim();
+  const q = qRaw.startsWith('@') ? qRaw.slice(1) : qRaw;
   if (!q) {
     res.status(200).json({ users: [], dialogs: [] });
     return;
@@ -35,6 +36,7 @@ export default async function handler(req: any, res: any) {
         { username: { contains: q, mode: 'insensitive' } },
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName: { contains: q, mode: 'insensitive' } },
+        { displayName: { contains: q, mode: 'insensitive' } },
       ],
     },
     take: 20,

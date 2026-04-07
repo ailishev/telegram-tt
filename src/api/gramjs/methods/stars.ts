@@ -49,6 +49,10 @@ import { invokeRequest } from './client';
 import { getPassword } from './twoFaSettings';
 
 export async function fetchCheckCanSendGift({ giftId }: { giftId: string }) {
+  if (IS_MOCKED_CLIENT || !/^\d+$/.test(giftId)) {
+    return { canSend: true };
+  }
+
   const result = await invokeRequest(new GramJs.payments.CheckCanSendGift({
     giftId: BigInt(giftId),
   }));
