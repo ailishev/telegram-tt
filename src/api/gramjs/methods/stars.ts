@@ -171,6 +171,13 @@ export async function fetchSavedStarGifts({
   filter?: GiftProfileFilterOptions;
   collectionId?: number;
 }) {
+  if (IS_MOCKED_CLIENT || !peer.accessHash) {
+    return {
+      gifts: getDemoPurchasedGifts(),
+      nextOffset: undefined,
+    };
+  }
+
   type GetSavedStarGiftsParams = ConstructorParameters<typeof GramJs.payments.GetSavedStarGifts>[0];
 
   const params: GetSavedStarGiftsParams = {
@@ -188,13 +195,6 @@ export async function fetchSavedStarGifts({
       excludeUnsaved: !filter.shouldIncludeHidden || undefined,
     } satisfies Partial<GetSavedStarGiftsParams>),
   };
-
-  if (IS_MOCKED_CLIENT) {
-    return {
-      gifts: getDemoPurchasedGifts(),
-      nextOffset: undefined,
-    };
-  }
 
   const result = await invokeRequest(new GramJs.payments.GetSavedStarGifts(params));
 
