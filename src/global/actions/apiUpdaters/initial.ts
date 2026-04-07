@@ -379,9 +379,9 @@ function openOwnProfileScreen(actions: RequiredGlobalActions, currentUserId: str
     return;
   }
 
-  actions.loadFullUser({ userId: currentUserId, withPhotos: true });
-  actions.loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true, tabId });
-  actions.loadMyUniqueGifts({ shouldRefresh: true });
+  actions.loadFullUser?.({ userId: currentUserId, withPhotos: true });
+  actions.loadPeerSavedGifts?.({ peerId: currentUserId, shouldRefresh: true, tabId });
+  actions.loadMyUniqueGifts?.({ shouldRefresh: true });
   actions.openChatWithInfo({
     id: currentUserId,
     isOwnProfile: true,

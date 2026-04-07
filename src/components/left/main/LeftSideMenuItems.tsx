@@ -107,8 +107,8 @@ const LeftSideMenuItems = ({
     // eslint-disable-next-line no-console
     console.info('[profile] action dispatched', { action: 'open-own-profile', currentUserId });
     if (isNumericPeerId(currentUserId)) {
-      loadFullUser({ userId: currentUserId, withPhotos: true });
-      loadPeerSavedGifts({ peerId: currentUserId, shouldRefresh: true });
+      loadFullUser?.({ userId: currentUserId, withPhotos: true });
+      loadPeerSavedGifts?.({ peerId: currentUserId, shouldRefresh: true });
     }
     openChatWithInfo({ id: currentUserId, isOwnProfile: true, shouldReplaceHistory: true });
   });

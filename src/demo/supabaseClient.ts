@@ -180,6 +180,19 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
   // eslint-disable-next-line no-console
   console.info('[dialogs][adapter] adapted payload', { activeDialogsCount: activeDialogs.length, usersCount: Object.keys(usersById).length });
 
+  if (!dialogIds.includes(currentUserId)) {
+    dialogIds.unshift(currentUserId);
+    activeDialogs.unshift({
+      id: currentUserId,
+      unreadCount: 0,
+      topMessage: 0,
+      readInboxMaxId: 0,
+      readOutboxMaxId: 0,
+      pinned: true,
+    } as any);
+    messagesByDialog[currentUserId] = messagesByDialog[currentUserId] || [];
+  }
+
   return {
     users: Object.values(usersById),
     chats: [],
