@@ -16,7 +16,7 @@ export const BASE_URL = process.env.BASE_URL;
 export const ACCOUNT_QUERY = 'account';
 
 export const IS_MOCKED_CLIENT = process.env.APP_MOCKED_CLIENT === '1';
-export const IS_BACKEND_ADAPTER_ONLY = true;
+export const IS_BACKEND_ADAPTER_ONLY = false;
 export const IS_TEST = process.env.APP_ENV === 'test';
 export const IS_PERF = process.env.APP_ENV === 'perf';
 export const IS_BETA = process.env.APP_ENV === 'staging';
