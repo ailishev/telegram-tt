@@ -9,6 +9,7 @@ import type { ActionReturnType } from '../../types';
 
 import {
   DEFAULT_RESALE_GIFTS_FILTER_OPTIONS,
+  IS_BACKEND_ADAPTER_ONLY,
   IS_MOCKED_CLIENT,
   STARS_CURRENCY_CODE,
   TON_CURRENCY_CODE,
@@ -356,7 +357,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
 
   const fetchingFilter = selectGiftProfileFilter(global, peerId, tabId);
 
-  if ((IS_MOCKED_CLIENT || peerId === global.currentUserId) && (shouldRefresh || !currentGifts)) {
+  if ((IS_MOCKED_CLIENT || IS_BACKEND_ADAPTER_ONLY || peerId === global.currentUserId) && (shouldRefresh || !currentGifts)) {
     const backendProfile = await fetch('/api/profile/get-current', {
       method: 'GET',
       credentials: 'include',
@@ -366,10 +367,14 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
       };
     } | undefined;
 
-    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+    const isOwnProfile = peerId === global.currentUserId;
+
+    if (isOwnProfile) {
+      syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+    }
 
     global = getGlobal();
-    global = replacePeerSavedGifts(global, peerId, getDemoPurchasedGifts(), undefined, tabId);
+    global = replacePeerSavedGifts(global, peerId, isOwnProfile ? getDemoPurchasedGifts() : [], undefined, tabId);
     setGlobal(global);
     return;
   }
