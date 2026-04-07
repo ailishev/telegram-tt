@@ -342,7 +342,13 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
     }
 
     if (isTerminatedSessionMessage(message)) {
-      dispatchErrorUpdate(err, request);
+      // In backend-adapter mode we suppress terminated Telegram RPC errors
+      // and let Prisma-backed flows continue to work with empty/stub data.
+      // eslint-disable-next-line no-console
+      console.info('[adapter] suppressed terminated telegram rpc', {
+        request: request.className,
+        message,
+      });
       return undefined;
     }
 
