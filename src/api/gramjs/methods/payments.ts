@@ -150,22 +150,6 @@ export async function sendStarPaymentForm({
             title: giftTitle,
             rarity: 'demo',
           }),
-        }).then(async (response) => {
-          if (response.ok || response.status !== 404) {
-            return;
-          }
-
-          await fetch('/api/profile/gifts/send', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              title: giftTitle,
-              rarity: 'demo',
-            }),
-          }).catch(() => undefined);
         }).catch(() => undefined);
       }
       return wasBought ? { completed: true } : undefined;
