@@ -9,6 +9,8 @@ import {
 import {
   APP_CONFIG_REFETCH_INTERVAL,
   COUNTRIES_WITH_12H_TIME_FORMAT,
+  IS_BACKEND_ADAPTER_ONLY,
+  IS_MOCKED_CLIENT,
   MUTE_INDEFINITE_TIMESTAMP,
   UNMUTE_TIMESTAMP,
 } from '../../../config';
@@ -421,6 +423,10 @@ addActionHandler('loadLanguages', async (global): Promise<void> => {
 addActionHandler('loadPrivacySettings', async (global, actions, payload): Promise<void> => {
   const { skipIfCached } = payload;
   if (skipIfCached && Object.keys(global.settings.privacy).length > 0) {
+    return;
+  }
+
+  if (IS_BACKEND_ADAPTER_ONLY || IS_MOCKED_CLIENT) {
     return;
   }
 
