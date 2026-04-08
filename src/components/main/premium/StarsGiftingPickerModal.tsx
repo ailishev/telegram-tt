@@ -17,7 +17,6 @@ import sortChatIds from '../../common/helpers/sortChatIds';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
 
-import PeerPicker from '../../common/pickers/PeerPicker';
 import PickerModal from '../../common/pickers/PickerModal';
 
 import styles from './StarsGiftingPickerModal.module.scss';
@@ -128,12 +127,25 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
   }, [isOpen, displayedUserIds]);
 
   const fallbackUsers = useMemo(() => {
-    if (!searchQuery.trim()) return backendUsers;
+    const usersById = getGlobal().users.byId;
+    const localUsers = displayedUserIds.map((id) => {
+      const user = usersById[id];
+      const username = user?.usernames?.find((u) => u.isActive)?.username;
+      const title = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || username || 'User';
+      return {
+        id,
+        title,
+        subtitle: username ? `@${username}` : undefined,
+      };
+    });
+
+    const source = localUsers.length ? localUsers : backendUsers;
+    if (!searchQuery.trim()) return source;
     const q = searchQuery.toLowerCase();
-    return backendUsers.filter((user) => (
+    return source.filter((user) => (
       user.title.toLowerCase().includes(q) || user.subtitle?.toLowerCase().includes(q)
     ));
-  }, [backendUsers, searchQuery]);
+  }, [backendUsers, displayedUserIds, searchQuery]);
 
   return (
     <PickerModal
@@ -147,38 +159,34 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
       confirmButtonText={oldLang('Continue')}
       onEnter={closeStarsGiftingPickerModal}
     >
-      {displayedUserIds.length > 0 ? (
-        <PeerPicker
-          className={styles.picker}
-          itemIds={displayedUserIds}
-          filterValue={searchQuery}
-          filterPlaceholder={oldLang('Search')}
-          onFilterChange={setSearchQuery}
-          isSearchable
-          withDefaultPadding
-          withStatus
-          onSelectedIdChange={handleSelectedUserIdsChange}
+      <div className={styles.picker}>
+        <input
+          className={styles.search}
+          value={searchQuery}
+          onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+          placeholder={oldLang('Search')}
         />
-      ) : (
-        <div className={styles.picker}>
-          <input
-            className={styles.search}
-            value={searchQuery}
-            onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
-            placeholder={oldLang('Search')}
-          />
-          {fallbackUsers.map((user) => (
-            <button
-              type="button"
-              className={styles.fallbackItem}
-              onClick={() => handleSelectedUserIdsChange(user.id)}
-            >
-              <div>{user.title}</div>
-              {user.subtitle && <div className={styles.fallbackSubtitle}>{user.subtitle}</div>}
-            </button>
-          ))}
-        </div>
-      )}
+        {fallbackUsers.map((user) => (
+          <button
+            type="button"
+            className={styles.fallbackItem}
+            onClick={() => handleSelectedUserIdsChange(user.id)}
+          >
+            <div>{user.title}</div>
+            {user.subtitle && <div className={styles.fallbackSubtitle}>{user.subtitle}</div>}
+          </button>
+        ))}
+        {!fallbackUsers.length && (
+          <button
+            type="button"
+            className={styles.fallbackItem}
+            onClick={() => currentUserId && handleSelectedUserIdsChange(currentUserId)}
+          >
+            <div>My profile</div>
+            {currentUserId && <div className={styles.fallbackSubtitle}>{currentUserId}</div>}
+          </button>
+        )}
+      </div>
     </PickerModal>
   );
 };
