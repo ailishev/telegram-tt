@@ -2,6 +2,7 @@ import type { FC } from '../../../lib/teact/teact';
 import { memo, useEffect } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
+import { mapProfileIdToPeerId } from '../../../demo/supabaseClient';
 import useOldLang from '../../../hooks/useOldLang';
 
 import PickerModal from '../../common/pickers/PickerModal';
@@ -24,10 +25,23 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
   const oldLang = useOldLang();
 
   useEffect(() => {
-    if (!isOpen || !currentUserId) return;
+    if (!isOpen) return;
 
-    openStarsGiftModal({ forUserId: currentUserId });
-    closeStarsGiftingPickerModal();
+    if (currentUserId) {
+      openStarsGiftModal({ forUserId: currentUserId });
+      closeStarsGiftingPickerModal();
+      return;
+    }
+
+    void fetch('/api/profile/get-current', {
+      method: 'GET',
+      credentials: 'include',
+    }).then((response) => (response.ok ? response.json() : undefined)).then((data) => {
+      const profileId = data?.profile?.id as string | undefined;
+      if (!profileId) return;
+      openStarsGiftModal({ forUserId: mapProfileIdToPeerId(profileId) });
+      closeStarsGiftingPickerModal();
+    }).catch(() => undefined);
   }, [isOpen, currentUserId]);
 
   return (
