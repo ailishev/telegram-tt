@@ -11,6 +11,7 @@ import type {
 } from '../../../../api/types';
 import type { TabState } from '../../../../global/types';
 
+import { IS_BACKEND_ADAPTER_ONLY, IS_MOCKED_CLIENT } from '../../../../config';
 import { getPeerTitle } from '../../../../global/helpers/peers';
 import {
   selectUser,
@@ -48,7 +49,7 @@ const StarsGiftModal: FC<OwnProps & StateProps> = ({
   user,
 }) => {
   const {
-    closeStarsGiftModal, openInvoice, requestConfetti,
+    closeStarsGiftModal, openInvoice, requestConfetti, reloadPeerSavedGifts, loadCurrentUser,
   } = getActions();
   const dialogRef = useRef<HTMLDivElement>();
 
@@ -94,6 +95,27 @@ const StarsGiftModal: FC<OwnProps & StateProps> = ({
     if (!renderingModal) return;
 
     setSelectedOption(option);
+    if (user && (IS_BACKEND_ADAPTER_ONLY || IS_MOCKED_CLIENT)) {
+      void fetch('/api/profile/gifts', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: `Gift ${option.stars}⭐`,
+          rarity: 'backend',
+        }),
+      }).then(() => {
+        loadCurrentUser();
+        if (user.id) {
+          reloadPeerSavedGifts({ peerId: user.id });
+        }
+      }).catch(() => undefined);
+      closeStarsGiftModal();
+      return;
+    }
+
     if (user) {
       openInvoice({
         type: 'starsgift',

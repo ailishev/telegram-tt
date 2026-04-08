@@ -185,35 +185,52 @@ export function getDisplayName(entity: Entity) {
  */
 export function getDC(dcId: number, downloadDC = false) {
   // TODO Move to external config
+  const dcAliases: Record<number, string> = {
+    1: 'pluto',
+    2: 'venus',
+    3: 'aurora',
+    4: 'vesta',
+    5: 'flora',
+  };
+  const alias = dcAliases[dcId];
+
+  if (alias) {
+    return {
+      id: dcId,
+      ipAddress: `${alias}${downloadDC ? '-1' : ''}.web.telegram.org`,
+      port: 443,
+    };
+  }
+
   switch (dcId) {
     case 1:
       return {
         id: 1,
-        ipAddress: `zws1${downloadDC ? '-1' : ''}.web.telegram.org`,
+        ipAddress: `pluto${downloadDC ? '-1' : ''}.web.telegram.org`,
         port: 443,
       };
     case 2:
       return {
         id: 2,
-        ipAddress: `zws2${downloadDC ? '-1' : ''}.web.telegram.org`,
+        ipAddress: `venus${downloadDC ? '-1' : ''}.web.telegram.org`,
         port: 443,
       };
     case 3:
       return {
         id: 3,
-        ipAddress: `zws3${downloadDC ? '-1' : ''}.web.telegram.org`,
+        ipAddress: `aurora${downloadDC ? '-1' : ''}.web.telegram.org`,
         port: 443,
       };
     case 4:
       return {
         id: 4,
-        ipAddress: `zws4${downloadDC ? '-1' : ''}.web.telegram.org`,
+        ipAddress: `vesta${downloadDC ? '-1' : ''}.web.telegram.org`,
         port: 443,
       };
     case 5:
       return {
         id: 5,
-        ipAddress: `zws5${downloadDC ? '-1' : ''}.web.telegram.org`,
+        ipAddress: `flora${downloadDC ? '-1' : ''}.web.telegram.org`,
         port: 443,
       };
     default:

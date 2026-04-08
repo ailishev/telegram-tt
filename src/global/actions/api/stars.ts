@@ -12,7 +12,9 @@ import {
   STARS_CURRENCY_CODE,
   TON_CURRENCY_CODE,
 } from '../../../config';
+import { getDemoPurchasedGifts, syncDemoPurchasedGiftsFromBackend } from '../../../demo/demoEconomy';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import { isNumericPeerId } from '../../../util/entities/ids';
 import { buildCollectionByCallback, buildCollectionByKey } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi } from '../../../api/gramjs';
@@ -338,8 +340,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     peerId, shouldRefresh, tabId = getCurrentTabId(),
   } = payload;
 
-  const peer = selectPeer(global, peerId);
-  if (!peer) return;
+  if (!isNumericPeerId(peerId)) return;
 
   global = getGlobal();
 
@@ -349,27 +350,30 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
 
   if (!shouldRefresh && currentGifts && !localNextOffset) return; // Already loaded all
 
-  const fetchingFilter = selectGiftProfileFilter(global, peerId, tabId);
+  const backendProfile = await fetch('/api/profile/get-current', {
+    method: 'GET',
+    credentials: 'include',
+  }).then((response) => (response.ok ? response.json() : undefined)).catch(() => undefined) as {
+    profile?: {
+      gifts?: Array<{ id: string; title?: string; acquiredAt?: string }>;
+    };
+  } | undefined;
 
-  const result = await callApi('fetchSavedStarGifts', {
-    peer,
-    offset: !shouldRefresh ? localNextOffset : '',
-    filter: fetchingFilter,
-    collectionId: fetchingCollectionId === 'all' ? undefined : fetchingCollectionId,
-  });
-
-  global = getGlobal();
-  const currentFilter = selectGiftProfileFilter(global, peerId, tabId);
-  const currentCollectionId = selectActiveGiftsCollectionId(global, peerId, tabId);
-
-  if (!result || currentCollectionId !== fetchingCollectionId || currentFilter !== fetchingFilter) {
+  const latestGlobal = getGlobal();
+  const currentCollectionId = selectActiveGiftsCollectionId(latestGlobal, peerId, tabId);
+  if (currentCollectionId !== fetchingCollectionId) {
     return;
   }
 
-  const newGifts = currentGifts && !shouldRefresh ? currentGifts.gifts.concat(result.gifts) : result.gifts;
+  const isOwnProfile = peerId === latestGlobal.currentUserId;
+  if (isOwnProfile) {
+    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+  }
 
-  global = replacePeerSavedGifts(global, peerId, newGifts, result.nextOffset, tabId);
-  setGlobal(global);
+  const newGifts = isOwnProfile ? getDemoPurchasedGifts() : [];
+
+  const updatedGlobal = replacePeerSavedGifts(latestGlobal, peerId, newGifts, undefined, tabId);
+  setGlobal(updatedGlobal);
 });
 
 addActionHandler('reloadPeerSavedGifts', (global, actions, payload): ActionReturnType => {

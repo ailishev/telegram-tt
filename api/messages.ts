@@ -1,5 +1,5 @@
-import { prisma } from './_lib/prisma.js';
-import { hashSessionToken, parseBody, readSessionToken } from './_lib/http.js';
+import { prisma } from '../server/prisma.js';
+import { hashSessionToken, parseBody, readSessionToken } from '../server/http.js';
 
 async function getSessionProfile(req: any) {
   const rawToken = readSessionToken(req);

@@ -1,6 +1,7 @@
 import { getActions } from '../global';
 
 import { PRODUCTION_HOSTNAME, WEB_VERSION_BASE } from '../config';
+import { safeStorage } from './browser/safeStorage';
 import { clearWebsync } from './websync';
 
 type AvailableVersions = 'Z' | 'K';
@@ -11,11 +12,11 @@ const PERMANENT_VERSION_KEY = 'kz_version';
 const CLIENT_VERSION: AvailableVersions = 'Z';
 
 function setPermanentWebVersion(version: AvailableVersions) {
-  localStorage.setItem(PERMANENT_VERSION_KEY, JSON.stringify(version));
+  safeStorage.setItem(PERMANENT_VERSION_KEY, JSON.stringify(version));
 }
 
 export function getPermanentWebVersion(): AvailableVersions | undefined {
-  const version = localStorage.getItem(PERMANENT_VERSION_KEY);
+  const version = safeStorage.getItem(PERMANENT_VERSION_KEY);
   if (version) {
     return JSON.parse(version);
   }

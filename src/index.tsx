@@ -17,6 +17,7 @@ import { betterView } from './util/betterView';
 import { IS_TAURI } from './util/browser/globalEnvironment';
 import listenOtherClients from './util/browser/listenOtherClients';
 import { requestGlobal, subscribeToMultitabBroadcastChannel } from './util/browser/multitab';
+import { safeStorage } from './util/browser/safeStorage';
 import { establishMultitabRole, subscribeToMasterChange } from './util/establishMultitabRole';
 import { initGlobal } from './util/init';
 import { initLocalization } from './util/localization';
@@ -56,11 +57,11 @@ async function init() {
 
   subscribeToMultitabBroadcastChannel();
   await requestGlobal(APP_VERSION);
-  localStorage.setItem(MULTITAB_STORAGE_KEY, '1');
+  safeStorage.setItem(MULTITAB_STORAGE_KEY, '1');
   onBeforeUnload(() => {
     const global = getGlobal();
     if (Object.keys(global.byTabId).length === 1) {
-      localStorage.removeItem(MULTITAB_STORAGE_KEY);
+      safeStorage.removeItem(MULTITAB_STORAGE_KEY);
     }
   });
 
