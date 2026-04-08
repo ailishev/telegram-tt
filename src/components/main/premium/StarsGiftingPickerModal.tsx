@@ -1,6 +1,6 @@
 import type { FC } from '../../../lib/teact/teact';
 import {
-  memo, useMemo,
+  memo, useEffect, useMemo,
   useState,
 } from '../../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../../global';
@@ -39,7 +39,7 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
   archivedListIds,
   userIds,
 }) => {
-  const { closeStarsGiftingPickerModal, openStarsGiftModal } = getActions();
+  const { closeStarsGiftingPickerModal, openStarsGiftModal, loadCurrentUser } = getActions();
 
   const oldLang = useOldLang();
 
@@ -90,6 +90,20 @@ const StarsGiftingPickerModal: FC<OwnProps & StateProps> = ({
       closeStarsGiftingPickerModal();
     }
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    loadCurrentUser();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (displayedUserIds.length > 0) return;
+    if (!currentUserId) return;
+
+    openStarsGiftModal({ forUserId: currentUserId });
+    closeStarsGiftingPickerModal();
+  }, [isOpen, displayedUserIds, currentUserId]);
 
   return (
     <PickerModal
