@@ -27,9 +27,17 @@ export default async function handler(req: any, res: any) {
   const savedDialog = await prisma.dialog.findFirst({
     where: {
       type: 'saved',
-      createdByProfileId: session.profileId,
+      OR: [
+        { createdByProfileId: session.profileId },
+        {
+          members: {
+            some: { profileId: session.profileId },
+          },
+        },
+      ],
     },
-    select: { id: true, pinned: true },
+    orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
+    select: { id: true, pinned: true, title: true },
   });
 
   if (savedDialog) {
@@ -47,10 +55,10 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    if (!savedDialog.pinned) {
+    if (!savedDialog.pinned || savedDialog.title !== 'Saved Messages') {
       await prisma.dialog.update({
         where: { id: savedDialog.id },
-        data: { pinned: true },
+        data: { pinned: true, title: 'Saved Messages' },
       });
     }
   } else {
