@@ -360,6 +360,11 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   } | undefined;
 
   const latestGlobal = getGlobal();
+  const currentCollectionId = selectActiveGiftsCollectionId(latestGlobal, peerId, tabId);
+  if (currentCollectionId !== fetchingCollectionId) {
+    return;
+  }
+
   const isOwnProfile = peerId === latestGlobal.currentUserId;
   if (isOwnProfile) {
     syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
