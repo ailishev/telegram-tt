@@ -24,6 +24,49 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const savedDialog = await prisma.dialog.findFirst({
+    where: {
+      type: 'saved',
+      createdByProfileId: session.profileId,
+    },
+    select: { id: true, pinned: true },
+  });
+
+  if (savedDialog) {
+    await prisma.dialogMember.upsert({
+      where: {
+        dialogId_profileId: {
+          dialogId: savedDialog.id,
+          profileId: session.profileId,
+        },
+      },
+      update: {},
+      create: {
+        dialogId: savedDialog.id,
+        profileId: session.profileId,
+      },
+    });
+
+    if (!savedDialog.pinned) {
+      await prisma.dialog.update({
+        where: { id: savedDialog.id },
+        data: { pinned: true },
+      });
+    }
+  } else {
+    await prisma.dialog.create({
+      data: {
+        type: 'saved',
+        title: 'Saved Messages',
+        createdByProfileId: session.profileId,
+        pinned: true,
+        members: {
+          create: [{ profileId: session.profileId }],
+        },
+      },
+    });
+  }
+
   const memberships = await prisma.dialogMember.findMany({
     where: { profileId: session.profileId },
     include: {
@@ -69,6 +112,12 @@ export default async function handler(req: any, res: any) {
         avatarUrl: peerProfile.avatarUrl,
       } : undefined,
     };
+  });
+
+  dialogs.sort((a, b) => {
+    if (a.type === 'saved' && b.type !== 'saved') return -1;
+    if (a.type !== 'saved' && b.type === 'saved') return 1;
+    return 0;
   });
 
   console.info('[dialogs][api] response', { dialogsCount: dialogs.length, profileId: session.profileId });
