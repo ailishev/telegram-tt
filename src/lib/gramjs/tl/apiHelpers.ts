@@ -7,9 +7,9 @@ import {
 import schemeContent from './schemaTl';
 
 import { toSignedLittleBuffer } from '../Helpers';
+import { safeStorage } from '../../../util/browser/safeStorage';
 
-// eslint-disable-next-line no-restricted-globals
-const CACHING_SUPPORTED = typeof self !== 'undefined' && self.localStorage !== undefined;
+const CACHING_SUPPORTED = true;
 
 const CACHE_KEY = 'GramJs:apiCache';
 
@@ -25,7 +25,7 @@ export function buildApiFromTlSchema() {
         definitions = loadFromTlSchemas();
 
         if (CACHING_SUPPORTED) {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(definitions));
+            safeStorage.setItem(CACHE_KEY, JSON.stringify(definitions));
         }
     }
 
@@ -36,7 +36,7 @@ export function buildApiFromTlSchema() {
 }
 
 function loadFromCache(): { constructors: GenerationEntryConfig[]; requests: GenerationEntryConfig[] } {
-    const jsonCache = localStorage.getItem(CACHE_KEY);
+    const jsonCache = safeStorage.getItem(CACHE_KEY);
     return jsonCache && JSON.parse(jsonCache);
 }
 

@@ -9,6 +9,8 @@ import {
 import {
   APP_CONFIG_REFETCH_INTERVAL,
   COUNTRIES_WITH_12H_TIME_FORMAT,
+  IS_BACKEND_ADAPTER_ONLY,
+  IS_MOCKED_CLIENT,
   MUTE_INDEFINITE_TIMESTAMP,
   UNMUTE_TIMESTAMP,
 } from '../../../config';
@@ -51,6 +53,14 @@ addActionHandler('updateProfile', async (global, actions, payload): Promise<void
     },
   }, tabId);
   setGlobal(global);
+  // eslint-disable-next-line no-console
+  console.info('[profile] profile save started', {
+    hasPhoto: Boolean(photo),
+    hasFirstName: firstName !== undefined,
+    hasLastName: lastName !== undefined,
+    hasBio: about !== undefined,
+    hasUsername: username !== undefined,
+  });
 
   if (photo) {
     await callApi('uploadProfilePhoto', photo);
@@ -103,6 +113,8 @@ addActionHandler('updateProfile', async (global, actions, payload): Promise<void
   if (photo) {
     actions.loadFullUser({ userId: currentUserId, withPhotos: true });
   }
+  // eslint-disable-next-line no-console
+  console.info('[profile] profile save succeeded', { currentUserId });
 });
 
 addActionHandler('updateBirthday', async (global, actions, payload): Promise<void> => {
@@ -411,6 +423,10 @@ addActionHandler('loadLanguages', async (global): Promise<void> => {
 addActionHandler('loadPrivacySettings', async (global, actions, payload): Promise<void> => {
   const { skipIfCached } = payload;
   if (skipIfCached && Object.keys(global.settings.privacy).length > 0) {
+    return;
+  }
+
+  if (IS_BACKEND_ADAPTER_ONLY || IS_MOCKED_CLIENT) {
     return;
   }
 

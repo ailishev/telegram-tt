@@ -611,7 +611,6 @@ addActionHandler('openStarsGiftModal', async (global, actions, payload): Promise
   }
 
   const chat = forUserId ? selectChat(global, forUserId) : undefined;
-  if (forUserId && !chat) return;
 
   const starsGiftOptions = await callApi('fetchStarsGiftOptions', {
     chat,

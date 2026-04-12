@@ -1,6 +1,7 @@
 import type { ApiSavedStarGift, ApiStarGiftRegular, ApiTypeCurrencyAmount } from '../api/types';
 
 import { STARS_CURRENCY_CODE } from '../config';
+import { safeStorage } from '../util/browser/safeStorage';
 
 const BALANCE_KEY = 'demo.stars.balance';
 const GIFTS_KEY = 'demo.stars.gifts';
@@ -45,16 +46,16 @@ const DEMO_GIFTS: ApiStarGiftRegular[] = [
 ];
 
 function readBalance() {
-  const value = Number(localStorage.getItem(BALANCE_KEY));
+  const value = Number(safeStorage.getItem(BALANCE_KEY));
   return Number.isFinite(value) ? value : INITIAL_STARS;
 }
 
 function writeBalance(value: number) {
-  localStorage.setItem(BALANCE_KEY, String(Math.max(0, value)));
+  safeStorage.setItem(BALANCE_KEY, String(Math.max(0, value)));
 }
 
 function readPurchasedGifts(): ApiSavedStarGift[] {
-  const raw = localStorage.getItem(GIFTS_KEY);
+  const raw = safeStorage.getItem(GIFTS_KEY);
   if (!raw) return [];
 
   try {
@@ -65,7 +66,7 @@ function readPurchasedGifts(): ApiSavedStarGift[] {
 }
 
 function writePurchasedGifts(gifts: ApiSavedStarGift[]) {
-  localStorage.setItem(GIFTS_KEY, JSON.stringify(gifts));
+  safeStorage.setItem(GIFTS_KEY, JSON.stringify(gifts));
 }
 
 export function getDemoStarGifts() {
@@ -82,6 +83,60 @@ export function getDemoStarsBalance(): ApiTypeCurrencyAmount {
 
 export function getDemoPurchasedGifts() {
   return readPurchasedGifts();
+}
+
+export function syncDemoPurchasedGiftsFromBackend(
+  gifts: Array<{ id: string; title?: string; acquiredAt?: string | Date }>,
+) {
+  if (!gifts?.length) return;
+
+  const current = readPurchasedGifts();
+  const existingIds = new Set(current.map((gift) => String(gift.savedId)));
+
+  const normalized = gifts
+    .filter((gift) => !existingIds.has(gift.id))
+    .map((gift) => {
+      const giftType: ApiStarGiftRegular = {
+        type: 'starGift',
+        id: `backend-gift-${gift.id}`,
+        title: gift.title || 'Подарок',
+        stars: 0,
+        starsToConvert: 0,
+        sticker: {
+          id: `backend-sticker-${gift.id}`,
+          isCustomEmoji: true,
+          emoji: '🎁',
+          isLottie: false,
+          isWebm: false,
+          width: 512,
+          height: 512,
+          setInfo: {
+            id: '0',
+            accessHash: '0',
+            title: 'Backend Gifts',
+            shortName: 'backend_gifts',
+            count: 1,
+            hash: 0,
+          },
+        } as any,
+      };
+
+      const acquiredAt = gift.acquiredAt ? new Date(gift.acquiredAt).getTime() : Date.now();
+      const date = Number.isFinite(acquiredAt) ? Math.floor(acquiredAt / 1000) : Math.floor(Date.now() / 1000);
+
+      return {
+        date,
+        gift: giftType,
+        savedId: gift.id,
+        message: {
+          text: 'Backend gift',
+          entities: [],
+        },
+      } as ApiSavedStarGift;
+    });
+
+  if (!normalized.length) return;
+  writePurchasedGifts([...normalized, ...current]);
 }
 
 export function buyDemoGift(giftId: string) {
@@ -112,6 +167,6 @@ export function buyDemoGift(giftId: string) {
 }
 
 export function resetDemoEconomy() {
-  localStorage.removeItem(BALANCE_KEY);
-  localStorage.removeItem(GIFTS_KEY);
+  safeStorage.removeItem(BALANCE_KEY);
+  safeStorage.removeItem(GIFTS_KEY);
 }

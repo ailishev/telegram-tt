@@ -9,6 +9,7 @@ import {
   SESSION_ACCOUNT_PREFIX,
 } from '../config';
 import { IS_MULTIACCOUNT_SUPPORTED } from './browser/globalEnvironment';
+import { safeStorage } from './browser/safeStorage';
 
 const WORKER_NAME = typeof WorkerGlobalScope !== 'undefined' && globalThis.self instanceof WorkerGlobalScope
   ? globalThis.self.name : undefined;
@@ -34,7 +35,7 @@ export function getAccountSlot(url: string) {
 
 export function getAccountsInfo() {
   if (!IS_MULTIACCOUNT_SUPPORTED) return {};
-  const allKeys = Object.keys(localStorage);
+  const allKeys = Object.keys(safeStorage);
   const allSlots = allKeys.filter((key) => key.startsWith(SESSION_ACCOUNT_PREFIX));
   const accountInfo: Record<number, AccountInfo> = {};
   for (const key of allSlots) {
@@ -70,7 +71,7 @@ function getAccountInfo(slot: number): AccountInfo | undefined {
 
 export function loadSlotSession(slot: number | undefined): SharedSessionData | undefined {
   try {
-    const data = JSON.parse(localStorage.getItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`) || '{}') as SharedSessionData;
+    const data = JSON.parse(safeStorage.getItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`) || '{}') as SharedSessionData;
     if (!data.dcId) return undefined;
     return data;
   } catch (e) {
@@ -94,7 +95,7 @@ export function storeAccountData(slot: number | undefined, data: Partial<Session
 }
 
 export function writeSlotSession(slot: number | undefined, data: SharedSessionData) {
-  localStorage.setItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`, JSON.stringify(data));
+  safeStorage.setItem(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`, JSON.stringify(data));
 }
 
 export function getAccountSlotUrl(slot: number, forLogin?: boolean, isTest?: boolean) {

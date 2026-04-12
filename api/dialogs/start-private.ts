@@ -1,7 +1,8 @@
-import { prisma } from '../_lib/prisma.js';
-import { hashSessionToken, parseBody, readSessionToken } from '../_lib/http.js';
+import { prisma } from '../../server/prisma.js';
+import { hashSessionToken, parseBody, readSessionToken } from '../../server/http.js';
 
 export default async function handler(req: any, res: any) {
+  console.info('[search][api] start-private request', { method: req.method });
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -50,6 +51,7 @@ export default async function handler(req: any, res: any) {
     .find(([, profileIds]) => profileIds.includes(session.profileId) && profileIds.includes(target.id))?.[0];
 
   if (existingDialogId) {
+    console.info('[search][api] start-private existing dialog', { dialogId: existingDialogId });
     res.status(200).json({ dialogId: existingDialogId, created: false });
     return;
   }
@@ -68,5 +70,6 @@ export default async function handler(req: any, res: any) {
     },
   });
 
+  console.info('[search][api] start-private created dialog', { dialogId: dialog.id });
   res.status(200).json({ dialogId: dialog.id, created: true });
 }

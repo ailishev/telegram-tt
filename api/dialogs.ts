@@ -1,5 +1,5 @@
-import { prisma } from './_lib/prisma.js';
-import { hashSessionToken, readSessionToken } from './_lib/http.js';
+import { prisma } from '../server/prisma.js';
+import { hashSessionToken, readSessionToken } from '../server/http.js';
 
 export default async function handler(req: any, res: any) {
   console.info('[dialogs][api] request', { method: req.method });
@@ -22,6 +22,57 @@ export default async function handler(req: any, res: any) {
   if (!session || session.expiresAt <= new Date()) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
+  }
+
+  const savedDialog = await prisma.dialog.findFirst({
+    where: {
+      type: 'saved',
+      OR: [
+        { createdByProfileId: session.profileId },
+        {
+          members: {
+            some: { profileId: session.profileId },
+          },
+        },
+      ],
+    },
+    orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
+    select: { id: true, pinned: true, title: true },
+  });
+
+  if (savedDialog) {
+    await prisma.dialogMember.upsert({
+      where: {
+        dialogId_profileId: {
+          dialogId: savedDialog.id,
+          profileId: session.profileId,
+        },
+      },
+      update: {},
+      create: {
+        dialogId: savedDialog.id,
+        profileId: session.profileId,
+      },
+    });
+
+    if (!savedDialog.pinned || savedDialog.title !== 'Saved Messages') {
+      await prisma.dialog.update({
+        where: { id: savedDialog.id },
+        data: { pinned: true, title: 'Saved Messages' },
+      });
+    }
+  } else {
+    await prisma.dialog.create({
+      data: {
+        type: 'saved',
+        title: 'Saved Messages',
+        createdByProfileId: session.profileId,
+        pinned: true,
+        members: {
+          create: [{ profileId: session.profileId }],
+        },
+      },
+    });
   }
 
   const memberships = await prisma.dialogMember.findMany({
@@ -69,6 +120,12 @@ export default async function handler(req: any, res: any) {
         avatarUrl: peerProfile.avatarUrl,
       } : undefined,
     };
+  });
+
+  dialogs.sort((a, b) => {
+    if (a.type === 'saved' && b.type !== 'saved') return -1;
+    if (a.type !== 'saved' && b.type === 'saved') return 1;
+    return 0;
   });
 
   console.info('[dialogs][api] response', { dialogsCount: dialogs.length, profileId: session.profileId });

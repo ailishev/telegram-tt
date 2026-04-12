@@ -36,7 +36,7 @@ import {
 import { copyTextToClipboard } from '../../../util/clipboard';
 import { formatShareText, processDeepLink } from '../../../util/deeplink';
 import { isDeepLink } from '../../../util/deepLinkParser';
-import { isUserId } from '../../../util/entities/ids';
+import { isNumericPeerId, isUserId } from '../../../util/entities/ids';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { getOrderedIds } from '../../../util/folderManager';
 import {
@@ -516,6 +516,41 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
   let i = 0;
   // eslint-disable-next-line no-console
   console.info('[dialogs] loadAllChats started', { listType });
+
+  const localSessionRestored = Boolean(global.currentUserId);
+  const linkedTelegramSession = Boolean(global.currentUserId && isNumericPeerId(global.currentUserId));
+  const isTelegramSessionValid = global.auth.state === 'authorizationStateReady';
+  // eslint-disable-next-line no-console
+  console.info('[auth] local session restored =', localSessionRestored);
+  // eslint-disable-next-line no-console
+  console.info('[telegram] linked session found =', linkedTelegramSession);
+  // eslint-disable-next-line no-console
+  console.info('[telegram] session valid =', isTelegramSessionValid);
+
+  if (!isTelegramSessionValid) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] skipping dialogs bootstrap because telegram not linked');
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    setGlobal(global);
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loading=false', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loaded=true', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state shown', { listType });
+    await whenFirstBatchDone?.();
+    return;
+  }
 
   while (!global.chats.isFullyLoaded[listType]) {
     if (i++ >= INFINITE_LOOP_MARKER) {
@@ -1185,6 +1220,20 @@ addActionHandler('toggleSavedDialogPinned', (global, actions, payload): ActionRe
 });
 
 addActionHandler('loadChatFolders', async (global): Promise<void> => {
+  const currentUserId = global.currentUserId;
+  const linkedTelegramSession = Boolean(currentUserId && isNumericPeerId(currentUserId));
+  const isTelegramSessionValid = global.auth.state === 'authorizationStateReady';
+  // eslint-disable-next-line no-console
+  console.info('[telegram] linked session found =', linkedTelegramSession);
+  // eslint-disable-next-line no-console
+  console.info('[telegram] session valid =', isTelegramSessionValid);
+
+  if (!isTelegramSessionValid) {
+    // eslint-disable-next-line no-console
+    console.info('[telegram] skipping dialogs bootstrap because telegram not linked');
+    return;
+  }
+
   const chatFolders = await callApi('fetchChatFolders');
 
   if (chatFolders) {
@@ -3269,10 +3318,46 @@ async function loadChats(
   const isFirstBatch = !shouldIgnorePagination && !offsetPeer && !offsetDate && !offsetId;
   const shouldReplaceStaleState = listType === 'active' && isFirstBatch;
   const isAccountFreeze = selectIsCurrentUserFrozen(global);
-  const currentUser = selectUser(global, global.currentUserId!)!;
+  const currentUserId = global.currentUserId;
+  const currentUser = currentUserId ? selectUser(global, currentUserId) : undefined;
+  const isTelegramAuthReady = global.auth.state === 'authorizationStateReady';
+  const isTelegramLinked = Boolean(currentUserId && isNumericPeerId(currentUserId) && currentUser);
+
+  if (!isTelegramAuthReady || (listType === 'saved' && !isTelegramLinked)) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] skipped because telegram not linked', {
+      listType,
+      currentUserId,
+      isTelegramAuthReady,
+      isTelegramLinked,
+    });
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loading resolved', { listType, reason: 'telegram-link-required' });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loading=false', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] set loaded=true', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state shown', { listType });
+    setGlobal(global);
+    return;
+  }
+
+  const linkedCurrentUser = currentUser!;
 
   const result = listType === 'saved' ? await callApi('fetchSavedChats', {
-    parentPeer: currentUser,
+    parentPeer: linkedCurrentUser,
     limit: CHAT_LIST_LOAD_SLICE,
     offsetDate,
     offsetId,
@@ -3291,6 +3376,37 @@ async function loadChats(
   if (!result) {
     // eslint-disable-next-line no-console
     console.warn('[dialogs] loadChats no result', { listType });
+    global = getGlobal();
+    // eslint-disable-next-line no-console
+    console.info('[store] dialogs state before fallback', {
+      listType,
+      listLength: global.chats.listIds[listType]?.length,
+      isFullyLoaded: global.chats.isFullyLoaded[listType],
+    });
+    global = replaceChatListIds(global, listType, []);
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: {
+          ...global.chats.isFullyLoaded,
+          [listType]: true,
+        },
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state branch hit: no result fallback', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loadChats set isFullyLoaded=true (fallback)', { listType });
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] loading resolved', { listType, reason: 'no-result-fallback' });
+    // eslint-disable-next-line no-console
+    console.info('[store] dialogs state after fallback', {
+      listType,
+      listLength: global.chats.listIds[listType]?.length,
+      isFullyLoaded: global.chats.isFullyLoaded[listType],
+    });
+    setGlobal(global);
     return;
   }
 
@@ -3299,6 +3415,12 @@ async function loadChats(
   console.info('[dialogs] loadChats response', { listType, chatIdsCount: chatIds.length, totalChatCount: result.totalChatCount });
 
   global = getGlobal();
+  // eslint-disable-next-line no-console
+  console.info('[store] dialogs state before update', {
+    listType,
+    listLength: global.chats.listIds[listType]?.length,
+    isFullyLoaded: global.chats.isFullyLoaded[listType],
+  });
   lastLocalServiceMessageId = selectLastServiceNotification(global)?.id;
 
   const newChats = buildCollectionByKey(result.chats, 'id');
@@ -3306,8 +3428,12 @@ async function loadChats(
   global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
   global = updateChats(global, newChats);
   if (isFirstBatch) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] adapted dialog count', { listType, adaptedDialogCount: chatIds.length });
     global = replaceChatListIds(global, listType, chatIds);
   } else {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] adapted dialog count', { listType, adaptedDialogCount: chatIds.length });
     global = addChatListIds(global, listType, chatIds);
   }
 
@@ -3358,6 +3484,27 @@ async function loadChats(
       },
     };
   }
+
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loading flag set false', {
+    listType,
+    hasNextOffset: Boolean(result.nextOffsetId || result.nextOffsetPeerId || result.nextOffsetDate),
+  });
+  // eslint-disable-next-line no-console
+  console.info('[dialogs] loaded state set', {
+    listType,
+    isFullyLoaded: global.chats.isFullyLoaded[listType],
+  });
+  if (!chatIds.length) {
+    // eslint-disable-next-line no-console
+    console.info('[dialogs] empty state branch hit', { listType });
+  }
+  // eslint-disable-next-line no-console
+  console.info('[store] dialogs state after update', {
+    listType,
+    listLength: global.chats.listIds[listType]?.length,
+    isFullyLoaded: global.chats.isFullyLoaded[listType],
+  });
 
   setGlobal(global);
 
