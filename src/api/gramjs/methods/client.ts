@@ -54,7 +54,6 @@ import {
   updateChannelState,
 } from '../updates/updateManager';
 import {
-  getAuthorizationState,
   onAuthError,
   onAuthReady,
   onCurrentUserUpdate,
@@ -82,6 +81,7 @@ const ABORT_CONTROLLERS = new Map<string, AbortController>();
 
 let client: TelegramClient;
 let currentUserId: string | undefined;
+let hasStoredSessionKeys = false;
 
 export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoidFunction) {
   if (DEBUG) {
@@ -97,6 +97,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
   } = initialArgs;
 
   const session = new sessions.CallbackSession(sessionData, onSessionUpdate);
+  hasStoredSessionKeys = Object.values(sessionData?.keys || {}).length > 0;
 
   (self as any).isWebmSupported = isWebmSupported;
 
@@ -145,7 +146,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
         qrCode: onRequestQrCode,
         onError: onAuthError,
         initialMethod: platform === 'iOS' || platform === 'Android' ? 'phoneNumber' : 'qrCode',
-        shouldThrowIfUnauthorized: Object.values(sessionData?.keys || {}).length > 0,
+        shouldThrowIfUnauthorized: hasStoredSessionKeys,
         webAuthToken,
         webAuthTokenFailed: onWebAuthTokenFailed,
         mockScenario,
@@ -325,9 +326,8 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
     }
 
     const message = err instanceof RPCError ? err.errorMessage : err.message;
-    const authState = getAuthorizationState();
     const isUnauthorizedDuringSignIn = message === 'AUTH_KEY_UNREGISTERED'
-      && authState !== 'authorizationStateReady';
+      && !hasStoredSessionKeys;
 
     if (isUnauthorizedDuringSignIn) {
       if (DEBUG) {
@@ -335,7 +335,7 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
         console.info('[adapter] suppressed terminated telegram rpc', {
           request: request.className,
           message,
-          authorizationState: authState,
+          hasStoredSessionKeys,
         });
       }
 
