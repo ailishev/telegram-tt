@@ -305,6 +305,12 @@ export default function createConfig(
         chunkIds: 'named',
       }),
     },
+
+    performance: {
+      hints: 'warning',
+      maxAssetSize: 1_300_000,
+      maxEntrypointSize: 900_000,
+    },
   };
 }
 
