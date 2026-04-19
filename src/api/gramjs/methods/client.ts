@@ -78,12 +78,22 @@ const gramJsUpdateEventBuilder = { build: (update: Update) => update };
 
 const CHAT_ABORT_CONTROLLERS = new Map<string, ChatAbortController>();
 const ABORT_CONTROLLERS = new Map<string, AbortController>();
+const PRE_AUTH_OPTIONAL_REQUESTS = new Set([
+  'stories.GetAllStories',
+  'messages.GetDefaultTagReactions',
+  'messages.GetRecentReactions',
+  'help.GetPromoData',
+  'messages.GetStickerSet',
+  'account.GetContentSettings',
+]);
 
 let client: TelegramClient;
 let currentUserId: string | undefined;
-let hasStoredSessionKeys = false;
+let isAuthorizationReady = false;
 
 export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoidFunction) {
+  isAuthorizationReady = false;
+
   if (DEBUG) {
     // eslint-disable-next-line no-console
     console.log('>>> START INIT API');
@@ -97,8 +107,6 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
   } = initialArgs;
 
   const session = new sessions.CallbackSession(sessionData, onSessionUpdate);
-  hasStoredSessionKeys = Object.values(sessionData?.keys || {}).length > 0;
-
   (self as any).isWebmSupported = isWebmSupported;
 
   (self as any).maxBufferSize = maxBufferSize;
@@ -146,7 +154,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
         qrCode: onRequestQrCode,
         onError: onAuthError,
         initialMethod: platform === 'iOS' || platform === 'Android' ? 'phoneNumber' : 'qrCode',
-        shouldThrowIfUnauthorized: hasStoredSessionKeys,
+        shouldThrowIfUnauthorized: Object.values(sessionData?.keys || {}).length > 0,
         webAuthToken,
         webAuthTokenFailed: onWebAuthTokenFailed,
         mockScenario,
@@ -174,6 +182,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     }
 
     onAuthReady();
+    isAuthorizationReady = true;
     onSessionUpdate(session.getSessionData());
     sendApiUpdate({ '@type': 'updateApiReady' });
 
@@ -195,6 +204,8 @@ export function setIsPremium({ isPremium }: { isPremium: boolean }) {
 
 const LOG_OUT_TIMEOUT = 2500;
 export async function destroy(noLogOut = false, noClearLocalDb = false) {
+  isAuthorizationReady = false;
+
   if (!noLogOut && client.isConnected()) {
     await Promise.race([
       invokeRequest(new GramJs.auth.LogOut()),
@@ -211,6 +222,7 @@ export async function destroy(noLogOut = false, noClearLocalDb = false) {
 }
 
 export function disconnect() {
+  isAuthorizationReady = false;
   client.disconnect();
 }
 
@@ -298,6 +310,17 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
   }
 
   try {
+    if (!isAuthorizationReady && PRE_AUTH_OPTIONAL_REQUESTS.has(request.className)) {
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.info('[adapter] skipped pre-auth optional rpc', {
+          request: request.className,
+        });
+      }
+
+      return undefined;
+    }
+
     if (DEBUG) {
       log('INVOKE', request.className);
     }
@@ -326,21 +349,6 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
     }
 
     const message = err instanceof RPCError ? err.errorMessage : err.message;
-    const isUnauthorizedDuringSignIn = message === 'AUTH_KEY_UNREGISTERED'
-      && !hasStoredSessionKeys;
-
-    if (isUnauthorizedDuringSignIn) {
-      if (DEBUG) {
-        // eslint-disable-next-line no-console
-        console.info('[adapter] suppressed terminated telegram rpc', {
-          request: request.className,
-          message,
-          hasStoredSessionKeys,
-        });
-      }
-
-      return undefined;
-    }
 
     if (message.includes('FROZEN_METHOD_INVALID')) {
       dispatchNotSupportedInFrozenAccountUpdate(err, request);

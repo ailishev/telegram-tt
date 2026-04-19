@@ -306,11 +306,6 @@ export default function createConfig(
       }),
     },
 
-    performance: {
-      hints: 'warning',
-      maxAssetSize: 1_300_000,
-      maxEntrypointSize: 900_000,
-    },
   };
 }
 
