@@ -16,6 +16,8 @@ const authController: {
   reject?: (error: Error) => void;
 } = {};
 
+let currentAuthorizationState: ApiUpdateAuthorizationStateType = 'authorizationStateWaitPhoneNumber';
+
 export function onWebAuthTokenFailed() {
   sendApiUpdate({
     '@type': 'updateWebAuthTokenFailed',
@@ -115,10 +117,16 @@ export function onCurrentUserUpdate(currentUser: ApiUser, currentUserFullInfo: A
 }
 
 export function buildAuthStateUpdate(authorizationState: ApiUpdateAuthorizationStateType): ApiUpdateAuthorizationState {
+  currentAuthorizationState = authorizationState;
+
   return {
     '@type': 'updateAuthorizationState',
     authorizationState,
   };
+}
+
+export function getAuthorizationState() {
+  return currentAuthorizationState;
 }
 
 export function provideAuthPhoneNumber(phoneNumber: string) {

@@ -54,6 +54,7 @@ import {
   updateChannelState,
 } from '../updates/updateManager';
 import {
+  getAuthorizationState,
   onAuthError,
   onAuthReady,
   onCurrentUserUpdate,
@@ -324,6 +325,22 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
     }
 
     const message = err instanceof RPCError ? err.errorMessage : err.message;
+    const authState = getAuthorizationState();
+    const isUnauthorizedDuringSignIn = message === 'AUTH_KEY_UNREGISTERED'
+      && authState !== 'authorizationStateReady';
+
+    if (isUnauthorizedDuringSignIn) {
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.info('[adapter] suppressed terminated telegram rpc', {
+          request: request.className,
+          message,
+          authorizationState: authState,
+        });
+      }
+
+      return undefined;
+    }
 
     if (message.includes('FROZEN_METHOD_INVALID')) {
       dispatchNotSupportedInFrozenAccountUpdate(err, request);
