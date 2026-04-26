@@ -1,6 +1,7 @@
 import type { Chat, ChatMember } from '@prisma/client';
 
-import { ensureDate, ensureString } from './common';
+import { ensureDate } from './common';
+import { bigIntToString } from './id';
 
 type MemberDTO = {
   userId: string;
@@ -20,13 +21,13 @@ export type ChatDTO = {
 
 export function toChatDTO(chat: Chat, members?: ChatMember[]): ChatDTO {
   return {
-    id: ensureString(chat.id, 'chat.id'),
+    id: bigIntToString(chat.id, 'chat.id'),
     type: chat.type,
     title: chat.title || undefined,
-    ownerId: ensureString(chat.ownerId, 'chat.ownerId'),
+    ownerId: bigIntToString(chat.ownerId, 'chat.ownerId'),
     createdAt: ensureDate(chat.createdAt, 'chat.createdAt').toISOString(),
     members: members?.map((member) => ({
-      userId: ensureString(member.userId, 'chatMember.userId'),
+      userId: bigIntToString(member.userId, 'chatMember.userId'),
       role: member.role,
       joinedAt: ensureDate(member.joinedAt, 'chatMember.joinedAt').toISOString(),
       unread: member.unread,

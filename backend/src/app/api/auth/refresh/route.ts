@@ -10,7 +10,7 @@ export async function POST() {
   if (!session || session.expiresAt <= new Date()) return fail('Unauthorized', 401);
 
   await verifyToken(refresh);
-  const payload = { sub: session.userId, username: session.user.username };
+  const payload = { sub: session.userId.toString(), username: session.user.username };
   const accessToken = await signAccessToken(payload);
   const nextRefresh = await signRefreshToken(payload);
 

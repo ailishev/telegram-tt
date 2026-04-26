@@ -1,6 +1,7 @@
 import type { User } from '@prisma/client';
 
 import { ensureDate, ensureString } from './common';
+import { bigIntToString } from './id';
 
 export type UserDTO = {
   id: string;
@@ -15,7 +16,7 @@ export type UserDTO = {
 
 export function toUserDTO(user: User): UserDTO {
   return {
-    id: ensureString(user.id, 'user.id'),
+    id: bigIntToString(user.id, 'user.id'),
     username: ensureString(user.username, 'user.username'),
     email: ensureString(user.email, 'user.email'),
     avatar: user.avatar || undefined,

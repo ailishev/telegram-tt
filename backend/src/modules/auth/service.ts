@@ -11,7 +11,7 @@ export async function register(input: { username: string; email: string; passwor
     },
   });
 
-  const payload = { sub: user.id, username: user.username };
+  const payload = { sub: user.id.toString(), username: user.username };
   const accessToken = await signAccessToken(payload);
   const refreshToken = await signRefreshToken(payload);
 
@@ -32,7 +32,7 @@ export async function login(input: { email: string; password: string }) {
   const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) return undefined;
 
-  const payload = { sub: user.id, username: user.username };
+  const payload = { sub: user.id.toString(), username: user.username };
   const accessToken = await signAccessToken(payload);
   const refreshToken = await signRefreshToken(payload);
 

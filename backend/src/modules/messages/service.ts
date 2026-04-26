@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { toMessageDTO, type MessageDTO } from '@/lib/mappers/message';
+import { mapMessage, type MessageMapperDTO } from '@/lib/mappers/message.mapper';
+import { toBigIntId } from '@/lib/mappers/id';
 
 export async function sendMessage(userId: string, input: {
   chatId: string;
@@ -7,7 +8,7 @@ export async function sendMessage(userId: string, input: {
   type: 'text' | 'image' | 'gift' | 'system';
   replyToId?: string;
   forwardFromId?: string;
-}): Promise<MessageDTO> {
+}): Promise<MessageMapperDTO> {
   if (!input.chatId) {
     throw new Error('chatId is required');
   }
@@ -15,24 +16,29 @@ export async function sendMessage(userId: string, input: {
     throw new Error('senderId is required');
   }
 
-  const member = await prisma.chatMember.findUnique({ where: { userId_chatId: { userId, chatId: input.chatId } } });
+  const chatId = toBigIntId(input.chatId, 'chatId');
+  const senderId = toBigIntId(userId, 'senderId');
+  const replyToId = input.replyToId ? toBigIntId(input.replyToId, 'replyToId') : undefined;
+  const forwardFromId = input.forwardFromId ? toBigIntId(input.forwardFromId, 'forwardFromId') : undefined;
+
+  const member = await prisma.chatMember.findUnique({ where: { userId_chatId: { userId: senderId, chatId } } });
   if (!member) throw new Error('Access denied');
 
   const message = await prisma.message.create({
     data: {
-      chatId: input.chatId,
-      senderId: userId,
+      chatId,
+      senderId,
       content: input.content,
       type: input.type,
-      replyToId: input.replyToId,
-      forwardFromId: input.forwardFromId,
+      replyToId,
+      forwardFromId,
     },
   });
 
   await prisma.chatMember.updateMany({
-    where: { chatId: input.chatId, NOT: { userId } },
+    where: { chatId, NOT: { userId: senderId } },
     data: { unread: { increment: 1 } },
   });
 
-  return toMessageDTO(message);
+  return mapMessage(message);
 }
