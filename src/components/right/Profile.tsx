@@ -513,6 +513,11 @@ const Profile = ({
     loadPeerSavedGifts({ peerId: chatId });
   }, [chatId]);
 
+  useEffect(() => {
+    if (!hasGiftsTab || !isOwnProfile || tabType !== 'gifts') return;
+    loadPeerSavedGifts({ peerId: chatId, shouldRefresh: true });
+  }, [chatId, hasGiftsTab, isOwnProfile, loadPeerSavedGifts, tabType]);
+
   const handleLoadMoreMembers = useCallback(() => {
     loadMoreMembers({ chatId });
   }, [chatId, loadMoreMembers]);
