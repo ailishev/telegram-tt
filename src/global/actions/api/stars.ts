@@ -369,48 +369,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   let newGifts: ApiSavedStarGift[] = [];
 
   if (isOwnProfile) {
-    const ownPeer = selectPeer(latestGlobal, peerId);
-    const telegramGifts = ownPeer
-      ? await callApi('fetchSavedStarGifts', {
-        peer: ownPeer,
-        offset: undefined,
-        filter: {
-          sortType: 'byDate',
-          shouldIncludeUnique: true,
-          shouldIncludeUnlimited: true,
-          shouldIncludeUpgradable: true,
-          shouldIncludeLimited: true,
-          shouldIncludeDisplayed: true,
-          shouldIncludeHidden: true,
-        },
-      })
-      : undefined;
-
-    if (telegramGifts?.gifts?.length) {
-      void Promise.all(telegramGifts.gifts.map(async (gift) => {
-        await fetch('/api/profile/gifts', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: gift.gift.title,
-            rarity: gift.gift.type === 'starGiftUnique' ? 'unique' : 'telegram',
-            externalId: gift.savedId || gift.gift.id,
-          }),
-        }).catch(() => undefined);
-      }));
-    }
-
-    const refreshedBackendProfile = await fetch('/api/profile/get-current', {
-      method: 'GET',
-      credentials: 'include',
-    }).then((response) => (response.ok ? response.json() : undefined)).catch(() => undefined) as {
-      profile?: {
-        gifts?: Array<{ id: string; title?: string; acquiredAt?: string }>;
-      };
-    } | undefined;
-
-    syncDemoPurchasedGiftsFromBackend(refreshedBackendProfile?.profile?.gifts || backendProfile?.profile?.gifts || []);
+    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
     newGifts = getDemoPurchasedGifts();
   }
 
@@ -435,9 +394,6 @@ addActionHandler('reloadPeerSavedGifts', (global, actions, payload): ActionRetur
       actions.loadPeerSavedGifts({ peerId, shouldRefresh: true, tabId: tabState.id });
     }
   });
-  if (peerId === global.currentUserId) {
-    actions.loadMyUniqueGifts({ shouldRefresh: true });
-  }
 });
 
 addActionHandler('loadStarsSubscriptions', async (global): Promise<void> => {
