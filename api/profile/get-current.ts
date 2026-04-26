@@ -1,6 +1,24 @@
 import { prisma } from '../../server/prisma.js';
 import { hashSessionToken, readSessionToken } from '../../server/http.js';
 
+function sanitizeJsonValue(value: unknown): unknown {
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeJsonValue);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, sanitizeJsonValue(nestedValue)]),
+    );
+  }
+
+  return value;
+}
+
 export default async function handler(req: any, res: any) {
   console.info('[profile][api] get-current request', { method: req.method });
   if (req.method !== 'GET') {
@@ -20,7 +38,6 @@ export default async function handler(req: any, res: any) {
       profile: {
         include: {
           gifts: {
-            where: { isDisplayed: true },
             orderBy: { acquiredAt: 'desc' },
           },
         },
@@ -50,8 +67,8 @@ export default async function handler(req: any, res: any) {
         iconUrl: gift.iconUrl,
         rarity: gift.rarity,
         acquiredAt: gift.acquiredAt,
-        isDisplayed: gift.isDisplayed,
-        metadataJson: gift.metadataJson,
+        isDisplayed: true,
+        metadataJson: sanitizeJsonValue(gift.metadataJson),
       })),
     },
   });
