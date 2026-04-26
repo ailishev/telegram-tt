@@ -130,7 +130,7 @@ export async function buildMockDataFromSupabase(): Promise<MockTypes> {
       phone: profile?.phoneNumber || session?.phoneNumber,
       verified: Boolean(profile?.isVerified),
       premium: Boolean(profile?.isPremium),
-      botVerificationIcon: profile?.isVerified ? 1n : undefined,
+      botVerificationIconId: profile?.isVerified ? '1' : undefined,
       bio: profile?.bio,
       stargiftsCount: profile?.gifts?.length || 0,
     },

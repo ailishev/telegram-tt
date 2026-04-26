@@ -78,6 +78,24 @@ let localApiRequestsQueue: { fnName: any; args: any; deferred: Deferred<any> }[]
 let apiRequestsQueue: { fnName: any; args: any; deferred: Deferred<any> }[] = [];
 let isInited = false;
 
+function shouldSuppressGramJsError(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err || '');
+  return message.includes('AUTH_KEY_UNREGISTERED')
+    || message.includes('Cannot convert undefined to a BigInt');
+}
+
+function withRecoverableFallback<T>(promise: Promise<T>): Promise<T> {
+  return promise.catch((err) => {
+    if (shouldSuppressGramJsError(err)) {
+      // eslint-disable-next-line no-console
+      console.warn('[gramjs] suppressed recoverable error', err);
+      return undefined as T;
+    }
+
+    throw err;
+  });
+}
+
 export function initApi(onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) {
   updateCallback = onUpdate;
 
@@ -170,11 +188,11 @@ export function callApiLocal<T extends keyof Methods>(
     return deferred.promise as EnsurePromise<MethodResponse<T>>;
   }
 
-  const promise = makeRequest({
+  const promise = withRecoverableFallback(makeRequest({
     type: 'callMethod',
     name: fnName,
     args,
-  });
+  }));
 
   // Some TypeScript magic to make sure `VirtualClass` is never returned from any method
   if (DEBUG) {
@@ -214,14 +232,14 @@ export function callApi<T extends keyof Methods>(fnName: T, ...args: MethodArgs<
     return deferred.promise as EnsurePromise<MethodResponse<T>>;
   }
 
-  const promise = isMasterTab ? makeRequest({
+  const promise = withRecoverableFallback(isMasterTab ? makeRequest({
     type: 'callMethod',
     name: fnName,
     args,
   }) : makeRequestToMaster({
     name: fnName,
     args,
-  });
+  }));
 
   // Some TypeScript magic to make sure `VirtualClass` is never returned from any method
   if (DEBUG) {

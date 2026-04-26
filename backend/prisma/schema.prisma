@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatType {
+  private
+  group
+  channel
+}
+
+enum MemberRole {
+  owner
+  admin
+  member
+}
+
+enum MessageType {
+  text
+  image
+  gift
+  system
+}
+
+enum GiftRarity {
+  common
+  rare
+  epic
+  legendary
+}
+
+model User {
+  id            BigInt       @id @default(autoincrement())
+  username      String       @unique
+  email         String       @unique
+  avatar        String?
+  bio           String?
+  passwordHash  String
+  createdAt     DateTime     @default(now())
+  lastSeen      DateTime     @default(now())
+  isOnline      Boolean      @default(false)
+
+  sessions      Session[]
+  ownedChats    Chat[]       @relation("ChatOwner")
+  memberships   ChatMember[]
+  sentMessages  Message[]    @relation("MessageSender")
+  reads         MessageRead[]
+
+  sentGifts     UserGift[]   @relation("GiftSender")
+  receivedGifts UserGift[]   @relation("GiftReceiver")
+}
+
+model Session {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Chat {
+  id        BigInt       @id @default(autoincrement())
+  type      ChatType
+  title     String?
+  createdAt DateTime     @default(now())
+  ownerId   BigInt
+
+  owner    User         @relation("ChatOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  ChatMember[]
+  messages Message[]
+
+  @@index([createdAt])
+}
+
+model ChatMember {
+  id        BigInt     @id @default(autoincrement())
+  userId    BigInt
+  chatId    BigInt
+  role      MemberRole @default(member)
+  joinedAt  DateTime   @default(now())
+  unread    Int        @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatId])
+  @@index([chatId])
+}
+
+model Message {
+  id            BigInt      @id @default(autoincrement())
+  chatId        BigInt
+  senderId      BigInt
+  content       String
+  type          MessageType @default(text)
+  replyToId     BigInt?
+  forwardFromId BigInt?
+  createdAt     DateTime    @default(now())
+  editedAt      DateTime?
+  isDeleted     Boolean     @default(false)
+
+  chat        Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender      User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo     Message?     @relation("ReplyThread", fields: [replyToId], references: [id])
+  replies     Message[]    @relation("ReplyThread")
+  forwardFrom Message?     @relation("ForwardThread", fields: [forwardFromId], references: [id])
+  forwards    Message[]    @relation("ForwardThread")
+  reads       MessageRead[]
+  userGifts   UserGift[]
+
+  @@index([chatId, createdAt])
+}
+
+model MessageRead {
+  id        BigInt   @id @default(autoincrement())
+  messageId BigInt
+  userId    BigInt
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+}
+
+model Gift {
+  id        BigInt     @id @default(autoincrement())
+  title     String
+  icon      String
+  animation String?
+  price     Int
+  rarity    GiftRarity
+  createdAt DateTime   @default(now())
+
+  userGifts UserGift[]
+}
+
+model UserGift {
+  id         BigInt   @id @default(autoincrement())
+  senderId   BigInt
+  receiverId BigInt
+  giftId     BigInt
+  messageId  BigInt?
+  createdAt  DateTime @default(now())
+
+  sender   User     @relation("GiftSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User     @relation("GiftReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  gift     Gift     @relation(fields: [giftId], references: [id], onDelete: Restrict)
+  message  Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([receiverId, createdAt])
+}

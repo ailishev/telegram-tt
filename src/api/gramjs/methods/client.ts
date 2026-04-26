@@ -359,6 +359,15 @@ export async function invokeRequest<T extends GramJs.AnyRequest>(
       return undefined;
     }
 
+    if (message.includes('Cannot convert undefined to a BigInt')) {
+      // eslint-disable-next-line no-console
+      console.info('[adapter] suppressed gramjs bigint conversion error', {
+        request: request.className,
+        message,
+      });
+      return undefined;
+    }
+
     if (shouldThrow) {
       throw err;
     }
@@ -521,9 +530,9 @@ export function dispatchErrorUpdate<T extends GramJs.AnyRequest>(err: Error, req
 }
 
 function isTerminatedSessionMessage(message: string) {
-  return message === 'AUTH_KEY_UNREGISTERED'
-    || message === 'SESSION_REVOKED'
-    || message === 'USER_DEACTIVATED';
+  return message.includes('AUTH_KEY_UNREGISTERED')
+    || message.includes('SESSION_REVOKED')
+    || message.includes('USER_DEACTIVATED');
 }
 
 function dispatchNotSupportedInFrozenAccountUpdate<T extends GramJs.AnyRequest>(err: Error, request: T) {

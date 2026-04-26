@@ -76,6 +76,54 @@ export default async function handler(req: any, res: any) {
     update: {},
   });
 
+  const existingGift = await prisma.profileGift.findFirst({
+    where: { profileId: profile.id },
+    select: { id: true },
+  });
+
+  if (!existingGift) {
+    await prisma.profileGift.create({
+      data: {
+        profileId: profile.id,
+        title: 'Welcome Gift',
+        iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f381.svg',
+        rarity: 'common',
+        isDisplayed: true,
+        metadataJson: {
+          source: 'verify-code',
+          origin: 'local-db',
+        },
+      },
+    });
+  }
+
+  const savedDialogMembership = await prisma.dialogMember.findFirst({
+    where: {
+      profileId: profile.id,
+      dialog: {
+        type: 'saved',
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!savedDialogMembership) {
+    await prisma.dialog.create({
+      data: {
+        type: 'saved',
+        title: 'Избранное',
+        createdByProfileId: profile.id,
+        pinned: true,
+        members: {
+          create: {
+            profileId: profile.id,
+            role: 'owner',
+          },
+        },
+      },
+    });
+  }
+
   await prisma.verificationCode.update({
     where: { id: verificationCode.id },
     data: {

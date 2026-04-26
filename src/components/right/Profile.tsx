@@ -471,11 +471,11 @@ const Profile = ({
   }, [gifts]);
 
   useEffect(() => {
-    if (hasGiftsTab && isSynced) {
+    if (hasGiftsTab && isSynced && !isOwnProfile) {
       loadStarGiftCollections({ peerId: chatId });
       loadStoryAlbums({ peerId: chatId });
     }
-  }, [chatId, hasGiftsTab, isSynced]);
+  }, [chatId, hasGiftsTab, isOwnProfile, isSynced]);
 
   const [renderingGifts, setRenderingGifts] = useState(gifts);
   const { startViewTransition } = useViewTransition();
@@ -512,6 +512,11 @@ const Profile = ({
   const handleLoadGifts = useCallback(() => {
     loadPeerSavedGifts({ peerId: chatId });
   }, [chatId]);
+
+  useEffect(() => {
+    if (!hasGiftsTab || !isOwnProfile || tabType !== 'gifts') return;
+    loadPeerSavedGifts({ peerId: chatId, shouldRefresh: true });
+  }, [chatId, hasGiftsTab, isOwnProfile, loadPeerSavedGifts, tabType]);
 
   const handleLoadMoreMembers = useCallback(() => {
     loadMoreMembers({ chatId });

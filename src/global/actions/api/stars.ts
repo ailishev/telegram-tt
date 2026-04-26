@@ -45,6 +45,8 @@ import {
   selectTabState,
 } from '../../selectors';
 
+const USE_PRISMA_GIFTS_ONLY = true;
+
 addActionHandler('loadStarStatus', async (global): Promise<void> => {
   const currentStarsStatus = global.stars;
   const needsTopupOptions = !currentStarsStatus?.topupOptions;
@@ -138,6 +140,23 @@ addActionHandler('loadStarsTransactions', async (global, actions, payload): Prom
 });
 
 addActionHandler('loadStarGifts', async (global): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    global = getGlobal();
+    global = {
+      ...global,
+      starGifts: {
+        byId: {},
+        idsByCategory: {
+          all: [],
+          collectible: [],
+          myUnique: [],
+        },
+      },
+    };
+    setGlobal(global);
+    return;
+  }
+
   const result = await callApi('fetchStarGifts');
 
   if (!result) {
@@ -170,6 +189,20 @@ addActionHandler('loadStarGifts', async (global): Promise<void> => {
 });
 
 addActionHandler('loadMyUniqueGifts', async (global, actions, payload): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    global = getGlobal();
+    global = {
+      ...global,
+      myUniqueGifts: {
+        byId: {},
+        ids: [],
+        nextOffset: undefined,
+      },
+    };
+    setGlobal(global);
+    return;
+  }
+
   const { shouldRefresh } = payload || {};
   const currentUserId = global.currentUserId;
   if (!currentUserId) return;
@@ -246,6 +279,22 @@ addActionHandler('updateResaleGiftsFilter', (global, actions, payload): ActionRe
 });
 
 addActionHandler('loadResaleGifts', async (global, actions, payload): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    const {
+      tabId = getCurrentTabId(),
+    } = payload;
+    global = updateTabState(global, {
+      resaleGifts: {
+        ...selectTabState(global, tabId).resaleGifts,
+        isLoading: false,
+        isAllLoaded: true,
+        gifts: [],
+      },
+    }, tabId);
+    setGlobal(global);
+    return;
+  }
+
   const {
     giftId, shouldRefresh, tabId = getCurrentTabId(),
   } = payload;
@@ -350,14 +399,38 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
 
   if (!shouldRefresh && currentGifts && !localNextOffset) return; // Already loaded all
 
-  const backendProfile = await fetch('/api/profile/get-current', {
+  const backendV2Gifts = await fetch('/api/users/me', {
     method: 'GET',
     credentials: 'include',
-  }).then((response) => (response.ok ? response.json() : undefined)).catch(() => undefined) as {
-    profile?: {
-      gifts?: Array<{ id: string; title?: string; acquiredAt?: string }>;
-    };
-  } | undefined;
+  })
+    .then((response) => (response.ok ? response.json() : undefined))
+    .then(async (mePayload) => {
+      const userId = mePayload?.data?.user?.id;
+      if (!userId) return [];
+
+      const giftsResponse = await fetch(`/api/users/${encodeURIComponent(String(userId))}/gifts`, {
+        method: 'GET',
+        credentials: 'include',
+      }).catch(() => undefined);
+      if (!giftsResponse?.ok) return [];
+
+      const giftsPayload = await giftsResponse.json() as {
+        data?: {
+          result?: Array<{
+            id: string;
+            gift?: { title?: string };
+            date?: number;
+          }>;
+        };
+      };
+
+      return (giftsPayload.data?.result || []).map((gift) => ({
+        id: String(gift.id),
+        title: gift.gift?.title || 'Подарок',
+        acquiredAt: gift.date ? new Date(gift.date).toISOString() : undefined,
+      }));
+    })
+    .catch(() => []);
 
   const latestGlobal = getGlobal();
   const currentCollectionId = selectActiveGiftsCollectionId(latestGlobal, peerId, tabId);
@@ -366,13 +439,20 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   }
 
   const isOwnProfile = peerId === latestGlobal.currentUserId;
+  let newGifts: ApiSavedStarGift[] = [];
+
   if (isOwnProfile) {
-    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+    syncDemoPurchasedGiftsFromBackend(backendV2Gifts);
+    newGifts = getDemoPurchasedGifts();
   }
 
-  const newGifts = isOwnProfile ? getDemoPurchasedGifts() : [];
+  const freshestGlobal = getGlobal();
+  const freshestCollectionId = selectActiveGiftsCollectionId(freshestGlobal, peerId, tabId);
+  if (freshestCollectionId !== fetchingCollectionId) {
+    return;
+  }
 
-  const updatedGlobal = replacePeerSavedGifts(latestGlobal, peerId, newGifts, undefined, tabId);
+  const updatedGlobal = replacePeerSavedGifts(freshestGlobal, peerId, newGifts, undefined, tabId);
   setGlobal(updatedGlobal);
 });
 
@@ -387,9 +467,6 @@ addActionHandler('reloadPeerSavedGifts', (global, actions, payload): ActionRetur
       actions.loadPeerSavedGifts({ peerId, shouldRefresh: true, tabId: tabState.id });
     }
   });
-  if (peerId === global.currentUserId) {
-    actions.loadMyUniqueGifts({ shouldRefresh: true });
-  }
 });
 
 addActionHandler('loadStarsSubscriptions', async (global): Promise<void> => {
@@ -680,6 +757,16 @@ addActionHandler('updateStarGiftPrice', async (global, actions, payload): Promis
 });
 
 addActionHandler('loadStarGiftCollections', async (global, actions, payload): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    const {
+      peerId,
+    } = payload;
+    global = getGlobal();
+    global = updatePeerStarGiftCollections(global, peerId, []);
+    setGlobal(global);
+    return;
+  }
+
   const {
     peerId,
     hash,
