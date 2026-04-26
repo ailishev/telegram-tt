@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { toMessageDTO, type MessageDTO } from '@/lib/mappers/message';
 
 export async function sendMessage(userId: string, input: {
   chatId: string;
@@ -6,7 +7,14 @@ export async function sendMessage(userId: string, input: {
   type: 'text' | 'image' | 'gift' | 'system';
   replyToId?: string;
   forwardFromId?: string;
-}) {
+}): Promise<MessageDTO> {
+  if (!input.chatId) {
+    throw new Error('chatId is required');
+  }
+  if (!userId) {
+    throw new Error('senderId is required');
+  }
+
   const member = await prisma.chatMember.findUnique({ where: { userId_chatId: { userId, chatId: input.chatId } } });
   if (!member) throw new Error('Access denied');
 
@@ -26,5 +34,5 @@ export async function sendMessage(userId: string, input: {
     data: { unread: { increment: 1 } },
   });
 
-  return message;
+  return toMessageDTO(message);
 }

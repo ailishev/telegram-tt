@@ -44,3 +44,9 @@
 
 - inbound: `chat:subscribe`, `chat:unsubscribe`, `typing:start`, `typing:stop`, `user:online`
 - outbound: `message:new`, `message:edit`, `message:delete`, `gift:send`, `user:online`, `user:offline`, `typing:start`, `typing:stop`
+
+## BigInt Incident Postmortem
+
+- root cause: mixed ID contracts (`string | bigint | undefined`) in legacy RPC-driven flow
+- fix: single ID standard (`string` everywhere in Prisma v2), strict mapper layer and hard runtime guards before DB writes
+- result: no `undefined -> bigint` conversion path in backend v2 data flow
