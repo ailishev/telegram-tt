@@ -391,7 +391,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
       newGifts = telegramGifts.gifts;
       nextOffset = telegramGifts.nextOffset;
 
-      await Promise.all(newGifts.map(async (gift) => {
+      void Promise.all(newGifts.map(async (gift) => {
         await fetch('/api/profile/gifts', {
           method: 'POST',
           credentials: 'include',
@@ -409,7 +409,13 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     }
   }
 
-  const updatedGlobal = replacePeerSavedGifts(latestGlobal, peerId, newGifts, nextOffset, tabId);
+  const freshestGlobal = getGlobal();
+  const freshestCollectionId = selectActiveGiftsCollectionId(freshestGlobal, peerId, tabId);
+  if (freshestCollectionId !== fetchingCollectionId) {
+    return;
+  }
+
+  const updatedGlobal = replacePeerSavedGifts(freshestGlobal, peerId, newGifts, nextOffset, tabId);
   setGlobal(updatedGlobal);
 });
 
