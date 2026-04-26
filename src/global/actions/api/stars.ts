@@ -366,13 +366,50 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   }
 
   const isOwnProfile = peerId === latestGlobal.currentUserId;
+  let nextOffset: string | undefined;
+  let newGifts: ApiSavedStarGift[] = [];
+
   if (isOwnProfile) {
-    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+    const ownPeer = selectPeer(latestGlobal, peerId);
+    const telegramGifts = ownPeer
+      ? await callApi('fetchSavedStarGifts', {
+        peer: ownPeer,
+        offset: shouldRefresh ? undefined : localNextOffset,
+        filter: {
+          sortType: 'byDate',
+          shouldIncludeUnique: true,
+          shouldIncludeUnlimited: true,
+          shouldIncludeUpgradable: true,
+          shouldIncludeLimited: true,
+          shouldIncludeDisplayed: true,
+          shouldIncludeHidden: true,
+        },
+      })
+      : undefined;
+
+    if (telegramGifts?.gifts?.length) {
+      newGifts = telegramGifts.gifts;
+      nextOffset = telegramGifts.nextOffset;
+
+      await Promise.all(newGifts.map(async (gift) => {
+        await fetch('/api/profile/gifts', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: gift.gift.title,
+            rarity: gift.gift.type === 'starGiftUnique' ? 'unique' : 'telegram',
+            externalId: gift.savedId || gift.gift.id,
+          }),
+        }).catch(() => undefined);
+      }));
+    } else {
+      syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+      newGifts = getDemoPurchasedGifts();
+    }
   }
 
-  const newGifts = isOwnProfile ? getDemoPurchasedGifts() : [];
-
-  const updatedGlobal = replacePeerSavedGifts(latestGlobal, peerId, newGifts, undefined, tabId);
+  const updatedGlobal = replacePeerSavedGifts(latestGlobal, peerId, newGifts, nextOffset, tabId);
   setGlobal(updatedGlobal);
 });
 

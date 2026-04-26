@@ -21,11 +21,30 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { title, iconUrl, rarity } = parseBody<{
+  const { title, iconUrl, rarity, externalId } = parseBody<{
     title?: string;
     iconUrl?: string;
     rarity?: string;
+    externalId?: string;
   }>(req);
+
+  if (externalId) {
+    const existingGift = await prisma.profileGift.findFirst({
+      where: {
+        profileId: session.profileId,
+        metadataJson: {
+          path: ['externalId'],
+          equals: externalId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existingGift) {
+      res.status(200).json({ ok: true, giftId: existingGift.id });
+      return;
+    }
+  }
 
   const gift = await prisma.profileGift.create({
     data: {
@@ -36,6 +55,7 @@ export default async function handler(req: any, res: any) {
       isDisplayed: true,
       metadataJson: {
         source: 'api.profile.gifts',
+        ...(externalId ? { externalId } : {}),
       },
     },
   });

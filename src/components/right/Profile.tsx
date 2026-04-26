@@ -471,11 +471,11 @@ const Profile = ({
   }, [gifts]);
 
   useEffect(() => {
-    if (hasGiftsTab && isSynced && !isOwnProfile) {
+    if (hasGiftsTab && isSynced) {
       loadStarGiftCollections({ peerId: chatId });
       loadStoryAlbums({ peerId: chatId });
     }
-  }, [chatId, hasGiftsTab, isOwnProfile, isSynced]);
+  }, [chatId, hasGiftsTab, isSynced]);
 
   const [renderingGifts, setRenderingGifts] = useState(gifts);
   const { startViewTransition } = useViewTransition();
