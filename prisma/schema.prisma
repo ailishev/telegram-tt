@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+   
+    url       = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+  directUrl = "postgresql://neondb_owner:npg_pv2Rbkgtsyx7@ep-sparkling-paper-amg8pjn4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+}
+
+enum DialogType {
+  saved
+  private
+  group
+  channel
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  authIdentifier String?  @unique
+  phoneNumber    String?  @unique
+  username       String?  @unique
+  firstName      String   @default("")
+  lastName       String   @default("")
+  displayName    String   @default("")
+  bio            String?
+  avatarUrl      String?
+  isVerified     Boolean  @default(false)
+  isPremium      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdDialogs Dialog[]       @relation("DialogCreator")
+  memberships    DialogMember[]
+  sentMessages   Message[]      @relation("MessageSender")
+  sessions       Session[]
+  gifts          ProfileGift[]
+  linkedTelegramAccount LinkedTelegramAccount?
+  localStarsBalance LocalStarsBalance?
+  localStarsTransactions LocalStarsTransaction[]
+
+}
+
+model LinkedTelegramAccount {
+  id                    String   @id @default(cuid())
+  profileId             String   @unique
+  telegramUserId        String
+  telegramPhone         String?
+  telegramUsername      String?
+  telegramSessionCipher String?
+  linkedAt              DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([telegramUserId])
+}
+
+model LocalStarsBalance {
+  id        String   @id @default(cuid())
+  profileId String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model LocalStarsTransaction {
+  id            String   @id @default(cuid())
+  profileId     String
+  amount        Int
+  type          String
+  referenceType String?
+  referenceId   String?
+  metadataJson  Json?
+  createdAt     DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+model ProfileGift {
+  id          String   @id @default(cuid())
+  profileId   String
+  title       String
+  iconUrl     String?
+  rarity      String?
+  metadataJson Json?
+  isDisplayed Boolean  @default(true)
+  acquiredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, acquiredAt])
+}
+
+model Dialog {
+  id                 String      @id @default(cuid())
+  type               DialogType
+  title              String?
+  avatarUrl          String?
+  createdByProfileId String?
+  lastMessageId      String?
+  lastMessagePreview String?
+  lastMessageAt      DateTime?
+  unreadCount        Int         @default(0)
+  pinned             Boolean     @default(false)
+  archived           Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  createdBy Profile?      @relation("DialogCreator", fields: [createdByProfileId], references: [id])
+  members   DialogMember[]
+  messages  Message[]
+
+}
+
+model DialogMember {
+  id        String   @id @default(cuid())
+  dialogId  String
+  profileId String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  dialog  Dialog  @relation(fields: [dialogId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([dialogId, profileId])
+}
+
+model Message {
+  id               String   @id @default(cuid())
+  dialogId         String
+  senderProfileId  String
+  content          String?
+  messageType      String   @default("text")
+  replyToMessageId String?
+  serviceAction    String?
+  metadataJson     Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  dialog Dialog  @relation(fields: [dialogId], references: [id], onDelete: Cascade)
+  sender Profile @relation("MessageSender", fields: [senderProfileId], references: [id], onDelete: Cascade)
+
+}
+
+model VerificationCode {
+  id           String   @id @default(cuid())
+  phoneNumber  String
+  code         String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  isUsed       Boolean  @default(false)
+  attemptsCount Int     @default(0)
+
+  @@index([phoneNumber, createdAt])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  profileId  String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
