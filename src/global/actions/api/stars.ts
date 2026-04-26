@@ -366,7 +366,6 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   }
 
   const isOwnProfile = peerId === latestGlobal.currentUserId;
-  let nextOffset: string | undefined;
   let newGifts: ApiSavedStarGift[] = [];
 
   if (isOwnProfile) {
@@ -374,7 +373,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     const telegramGifts = ownPeer
       ? await callApi('fetchSavedStarGifts', {
         peer: ownPeer,
-        offset: shouldRefresh ? undefined : localNextOffset,
+        offset: undefined,
         filter: {
           sortType: 'byDate',
           shouldIncludeUnique: true,
@@ -388,10 +387,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
       : undefined;
 
     if (telegramGifts?.gifts?.length) {
-      newGifts = telegramGifts.gifts;
-      nextOffset = telegramGifts.nextOffset;
-
-      void Promise.all(newGifts.map(async (gift) => {
+      void Promise.all(telegramGifts.gifts.map(async (gift) => {
         await fetch('/api/profile/gifts', {
           method: 'POST',
           credentials: 'include',
@@ -403,10 +399,19 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
           }),
         }).catch(() => undefined);
       }));
-    } else {
-      syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
-      newGifts = getDemoPurchasedGifts();
     }
+
+    const refreshedBackendProfile = await fetch('/api/profile/get-current', {
+      method: 'GET',
+      credentials: 'include',
+    }).then((response) => (response.ok ? response.json() : undefined)).catch(() => undefined) as {
+      profile?: {
+        gifts?: Array<{ id: string; title?: string; acquiredAt?: string }>;
+      };
+    } | undefined;
+
+    syncDemoPurchasedGiftsFromBackend(refreshedBackendProfile?.profile?.gifts || backendProfile?.profile?.gifts || []);
+    newGifts = getDemoPurchasedGifts();
   }
 
   const freshestGlobal = getGlobal();
@@ -415,7 +420,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     return;
   }
 
-  const updatedGlobal = replacePeerSavedGifts(freshestGlobal, peerId, newGifts, nextOffset, tabId);
+  const updatedGlobal = replacePeerSavedGifts(freshestGlobal, peerId, newGifts, undefined, tabId);
   setGlobal(updatedGlobal);
 });
 
