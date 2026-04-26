@@ -408,6 +408,39 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
     };
   } | undefined;
 
+  const backendV2Gifts = await fetch('/api/users/me', {
+    method: 'GET',
+    credentials: 'include',
+  })
+    .then((response) => (response.ok ? response.json() : undefined))
+    .then(async (mePayload) => {
+      const userId = mePayload?.data?.user?.id;
+      if (!userId) return [];
+
+      const giftsResponse = await fetch(`/api/users/${encodeURIComponent(String(userId))}/gifts`, {
+        method: 'GET',
+        credentials: 'include',
+      }).catch(() => undefined);
+      if (!giftsResponse?.ok) return [];
+
+      const giftsPayload = await giftsResponse.json() as {
+        data?: {
+          result?: Array<{
+            id: string;
+            gift?: { title?: string };
+            date?: number;
+          }>;
+        };
+      };
+
+      return (giftsPayload.data?.result || []).map((gift) => ({
+        id: String(gift.id),
+        title: gift.gift?.title || 'Подарок',
+        acquiredAt: gift.date ? new Date(gift.date).toISOString() : undefined,
+      }));
+    })
+    .catch(() => []);
+
   const latestGlobal = getGlobal();
   const currentCollectionId = selectActiveGiftsCollectionId(latestGlobal, peerId, tabId);
   if (currentCollectionId !== fetchingCollectionId) {
@@ -418,7 +451,10 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   let newGifts: ApiSavedStarGift[] = [];
 
   if (isOwnProfile) {
-    syncDemoPurchasedGiftsFromBackend(backendProfile?.profile?.gifts || []);
+    syncDemoPurchasedGiftsFromBackend([
+      ...(backendProfile?.profile?.gifts || []),
+      ...backendV2Gifts,
+    ]);
     newGifts = getDemoPurchasedGifts();
   }
 
