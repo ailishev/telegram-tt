@@ -40,6 +40,9 @@
 { "chatId": "clx...", "receiverId": "clx...", "giftId": "clx...", "message": "🎁" }
 ```
 
+### Profile gifts
+`GET /api/users/:id/gifts`
+
 ## WS Events
 
 - inbound: `chat:subscribe`, `chat:unsubscribe`, `typing:start`, `typing:stop`, `user:online`

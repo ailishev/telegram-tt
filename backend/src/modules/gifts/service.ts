@@ -2,6 +2,32 @@ import { prisma } from '@/lib/prisma';
 import { sendMessage } from '@/modules/messages/service';
 import { mapUserGift } from '@/lib/mappers/gift.mapper';
 import { toBigIntId } from '@/lib/mappers/id';
+import type { GiftDTO, UserGiftDTO } from './dto';
+import { mapGift } from '@/lib/mappers/gift.mapper';
+
+export async function getProfileGifts(userId: string): Promise<UserGiftDTO[]> {
+  if (!userId) {
+    throw new Error('userId required');
+  }
+
+  const receiverId = toBigIntId(userId, 'userId');
+
+  const gifts = await prisma.userGift.findMany({
+    where: { receiverId },
+    include: { gift: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return gifts.map(mapUserGift);
+}
+
+export async function listGifts(): Promise<GiftDTO[]> {
+  const gifts = await prisma.gift.findMany({
+    orderBy: [{ price: 'asc' }, { createdAt: 'desc' }],
+  });
+
+  return gifts.map(mapGift);
+}
 
 export async function sendGift(userId: string, input: { chatId: string; receiverId: string; giftId: string; message: string }) {
   if (!input.receiverId || !input.giftId) {

@@ -135,7 +135,7 @@ model MessageRead {
 
 model Gift {
   id        BigInt     @id @default(autoincrement())
-  name      String
+  title     String
   icon      String
   animation String?
   price     Int

@@ -1,25 +1,33 @@
 import type { Gift, UserGift } from '@prisma/client';
+import type { GiftDTO, UserGiftDTO } from '@/modules/gifts/dto';
 
 import { bigIntToString } from './id';
 
-export function mapGift(db: Gift) {
+export function mapGift(gift: Gift): GiftDTO {
+  if (!gift?.id) {
+    throw new Error('Invalid gift');
+  }
+
   return {
-    id: bigIntToString(db.id, 'gift.id'),
-    name: db.name,
-    icon: db.icon,
-    animation: db.animation || undefined,
-    price: db.price,
-    rarity: db.rarity,
+    id: gift.id.toString(),
+    title: gift.title,
+    icon: gift.icon,
+    animation: gift.animation ?? null,
+    price: gift.price,
+    rarity: gift.rarity,
   };
 }
 
-export function mapUserGift(db: UserGift) {
+export function mapUserGift(item: UserGift & { gift: Gift }): UserGiftDTO {
+  if (!item?.gift) {
+    throw new Error('Missing gift relation');
+  }
+
   return {
-    id: bigIntToString(db.id, 'userGift.id'),
-    senderId: bigIntToString(db.senderId, 'userGift.senderId'),
-    receiverId: bigIntToString(db.receiverId, 'userGift.receiverId'),
-    giftId: bigIntToString(db.giftId, 'userGift.giftId'),
-    messageId: db.messageId ? db.messageId.toString() : undefined,
-    createdAt: db.createdAt.toISOString(),
+    id: bigIntToString(item.id, 'userGift.id'),
+    gift: mapGift(item.gift),
+    senderId: bigIntToString(item.senderId, 'userGift.senderId'),
+    receiverId: bigIntToString(item.receiverId, 'userGift.receiverId'),
+    date: new Date(item.createdAt).getTime(),
   };
 }
