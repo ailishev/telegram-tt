@@ -45,6 +45,8 @@ import {
   selectTabState,
 } from '../../selectors';
 
+const USE_PRISMA_GIFTS_ONLY = true;
+
 addActionHandler('loadStarStatus', async (global): Promise<void> => {
   const currentStarsStatus = global.stars;
   const needsTopupOptions = !currentStarsStatus?.topupOptions;
@@ -138,6 +140,23 @@ addActionHandler('loadStarsTransactions', async (global, actions, payload): Prom
 });
 
 addActionHandler('loadStarGifts', async (global): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    global = getGlobal();
+    global = {
+      ...global,
+      starGifts: {
+        byId: {},
+        idsByCategory: {
+          all: [],
+          collectible: [],
+          myUnique: [],
+        },
+      },
+    };
+    setGlobal(global);
+    return;
+  }
+
   const result = await callApi('fetchStarGifts');
 
   if (!result) {
@@ -170,6 +189,20 @@ addActionHandler('loadStarGifts', async (global): Promise<void> => {
 });
 
 addActionHandler('loadMyUniqueGifts', async (global, actions, payload): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    global = getGlobal();
+    global = {
+      ...global,
+      myUniqueGifts: {
+        byId: {},
+        ids: [],
+        nextOffset: undefined,
+      },
+    };
+    setGlobal(global);
+    return;
+  }
+
   const { shouldRefresh } = payload || {};
   const currentUserId = global.currentUserId;
   if (!currentUserId) return;
@@ -246,6 +279,22 @@ addActionHandler('updateResaleGiftsFilter', (global, actions, payload): ActionRe
 });
 
 addActionHandler('loadResaleGifts', async (global, actions, payload): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    const {
+      tabId = getCurrentTabId(),
+    } = payload;
+    global = updateTabState(global, {
+      resaleGifts: {
+        ...selectTabState(global, tabId).resaleGifts,
+        isLoading: false,
+        isAllLoaded: true,
+        gifts: [],
+      },
+    }, tabId);
+    setGlobal(global);
+    return;
+  }
+
   const {
     giftId, shouldRefresh, tabId = getCurrentTabId(),
   } = payload;
@@ -684,6 +733,16 @@ addActionHandler('updateStarGiftPrice', async (global, actions, payload): Promis
 });
 
 addActionHandler('loadStarGiftCollections', async (global, actions, payload): Promise<void> => {
+  if (USE_PRISMA_GIFTS_ONLY) {
+    const {
+      peerId,
+    } = payload;
+    global = getGlobal();
+    global = updatePeerStarGiftCollections(global, peerId, []);
+    setGlobal(global);
+    return;
+  }
+
   const {
     peerId,
     hash,
