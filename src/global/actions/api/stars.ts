@@ -399,15 +399,6 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
 
   if (!shouldRefresh && currentGifts && !localNextOffset) return; // Already loaded all
 
-  const backendProfile = await fetch('/api/profile/get-current', {
-    method: 'GET',
-    credentials: 'include',
-  }).then((response) => (response.ok ? response.json() : undefined)).catch(() => undefined) as {
-    profile?: {
-      gifts?: Array<{ id: string; title?: string; acquiredAt?: string }>;
-    };
-  } | undefined;
-
   const backendV2Gifts = await fetch('/api/users/me', {
     method: 'GET',
     credentials: 'include',
@@ -451,10 +442,7 @@ addActionHandler('loadPeerSavedGifts', async (global, actions, payload): Promise
   let newGifts: ApiSavedStarGift[] = [];
 
   if (isOwnProfile) {
-    syncDemoPurchasedGiftsFromBackend([
-      ...(backendProfile?.profile?.gifts || []),
-      ...backendV2Gifts,
-    ]);
+    syncDemoPurchasedGiftsFromBackend(backendV2Gifts);
     newGifts = getDemoPurchasedGifts();
   }
 
