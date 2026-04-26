@@ -24,6 +24,33 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const savedDialogMembership = await prisma.dialogMember.findFirst({
+    where: {
+      profileId: session.profileId,
+      dialog: {
+        type: 'saved',
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!savedDialogMembership) {
+    await prisma.dialog.create({
+      data: {
+        type: 'saved',
+        title: 'Избранное',
+        createdByProfileId: session.profileId,
+        pinned: true,
+        members: {
+          create: {
+            profileId: session.profileId,
+            role: 'owner',
+          },
+        },
+      },
+    });
+  }
+
   const memberships = await prisma.dialogMember.findMany({
     where: { profileId: session.profileId },
     include: {
