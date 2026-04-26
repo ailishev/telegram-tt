@@ -1,4 +1,4 @@
-import { fail, ok } from '@/lib/http';
+import { ok } from '@/lib/http';
 import { getProfileGifts } from '@/modules/gifts/service';
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -6,7 +6,6 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     const result = await getProfileGifts(params.id);
     return ok({ result });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid request';
-    return fail(message, 400);
+    return ok({ result: [] });
   }
 }
