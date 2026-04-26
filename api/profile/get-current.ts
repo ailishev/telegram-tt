@@ -50,6 +50,27 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  if (!session.profile.gifts.length) {
+    await prisma.profileGift.create({
+      data: {
+        profileId: session.profile.id,
+        title: 'Welcome Gift',
+        iconUrl: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f381.svg',
+        rarity: 'common',
+        isDisplayed: true,
+        metadataJson: {
+          source: 'bootstrap',
+          origin: 'local-db',
+        },
+      },
+    });
+
+    session.profile.gifts = await prisma.profileGift.findMany({
+      where: { profileId: session.profile.id },
+      orderBy: { acquiredAt: 'desc' },
+    });
+  }
+
   res.status(200).json({
     profile: {
       id: session.profile.id,
